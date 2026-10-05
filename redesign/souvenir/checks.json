@@ -1,0 +1,33 @@
+{
+  "scope": "Modèle autonome uniquement; aucun appel, paiement ou déploiement.",
+  "cases": {
+    "normal": {
+      "pages": 1,
+      "text_within_margins": true,
+      "remote_requests": 0
+    },
+    "blank": {
+      "pages": 1,
+      "text_within_margins": true,
+      "remote_requests": 0
+    },
+    "long": {
+      "pages": 3,
+      "text_within_margins": true,
+      "remote_requests": 0
+    },
+    "longword": {
+      "pages": 2,
+      "text_within_margins": true,
+      "remote_requests": 0
+    }
+  },
+  "screen_390": {
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "screen_1440": {
+    "width": 1440,
+    "scrollWidth": 1440
+  }
+}

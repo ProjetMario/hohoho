@@ -1,0 +1,5 @@
+node_modules/
+*.pdf
+local-data/
+.env
+.env.*
