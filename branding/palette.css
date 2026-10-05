@@ -1,0 +1,50 @@
+/*
+ * HoHoHo Santa — palette issue du logo validé
+ * Statut : fichier préparé, NON intégré et NON déployé sur le site.
+ *
+ * Les rouges, l'or et les ivoires reprennent des teintes représentatives
+ * du PNG. Les couleurs de texte et de bordure sont des adaptations.
+ *
+ * Importer ce fichier dans la feuille de style globale, puis relier les
+ * variables aux composants existants. Ces variables seules ne modifient
+ * ni la mise en page, ni les couleurs actuellement utilisées par le site.
+ * Aucun sélecteur du projet n'est supposé ici : les sources sont nécessaires
+ * pour réaliser et vérifier l'intégration.
+ */
+
+:root {
+  /* Identité */
+  --santa-red: #BD0C0F;
+  --santa-red-deep: #850909;
+  --santa-red-bright: #CA1C1C;
+  --santa-gold: #D79753;
+  --santa-gold-text: #855019;
+  --santa-ivory: #FEF8EE;
+  --santa-white-warm: #FEFEFA;
+
+  /* Fonds, cartes et textes */
+  --santa-background: var(--santa-ivory);
+  --santa-surface: var(--santa-white-warm);
+  --santa-text: #3B231F;
+  --santa-text-muted: #6D5045;
+  --santa-heading: var(--santa-red-deep);
+  --santa-border: #E9D9C5;
+
+  /* Boutons principaux */
+  --santa-action-background: var(--santa-red);
+  --santa-action-hover: var(--santa-red-deep);
+  --santa-action-text: var(--santa-ivory);
+
+  /* Liens et navigation au clavier */
+  --santa-link: var(--santa-red-deep);
+  --santa-link-hover: var(--santa-red);
+  --santa-focus-ring: var(--santa-red-deep);
+
+  /* Or clair : décorations. Or foncé : texte sur fond ivoire. */
+  --santa-accent: var(--santa-gold);
+  --santa-accent-text: var(--santa-gold-text);
+
+  /* Bandeaux festifs, sans imposer de nouvelle structure */
+  --santa-festive-background: linear-gradient(135deg, #BD0C0F, #850909);
+  --santa-festive-text: var(--santa-ivory);
+}
