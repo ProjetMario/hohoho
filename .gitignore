@@ -1,0 +1,25 @@
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dépendances et fichiers produits localement
+node_modules/
+.next/
+.netlify/
+out/
+dist/
+build/
+coverage/
+*.log
+*.tsbuildinfo
+
+# Système et éditeur
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
