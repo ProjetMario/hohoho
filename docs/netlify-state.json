@@ -1,0 +1,22 @@
+{
+  "description": "État historique issu de l’archive préparée dans la conversation ; pas une nouvelle interrogation de Netlify.",
+  "observed_on": "2026-10-05",
+  "site_name": "hohohosanta-live",
+  "domain": "hohohosanta.app",
+  "consulted_deploy_state": "ready",
+  "framework": "next",
+  "deploy_source": "cli",
+  "has_source_zip": false,
+  "application_source_recovered": false,
+  "github_repository": "ProjetMario/hohoho",
+  "import_status": "partial",
+  "imported_text_files": [
+    "README.md",
+    ".gitignore",
+    "branding/palette.css",
+    "docs/netlify-state.json"
+  ],
+  "original_png_logos_uploaded": false,
+  "production_modified_by_this_import": false,
+  "automatic_deployment_configured_by_this_import": false
+}
