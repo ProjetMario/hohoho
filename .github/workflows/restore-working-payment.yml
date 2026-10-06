@@ -1,0 +1,69 @@
+name: Restaurer le paiement HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/restore-working-payment.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Restaurer la dernière version avec Checkout vérifié et valider sans paiement
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          assert.ok(token,'NETLIFY_AUTH_TOKEN absent');
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const currentId='6ac4f14e6db27e83d72c3aa4';
+          const workingId='6ac3634dc1cb0929bc1f412c';
+          const base='https://api.netlify.com/api/v1';
+          const h={Authorization:'Bearer '+token,Accept:'application/json'};
+          async function api(path,{method='GET',body}={}){
+            const r=await fetch(base+path,{method,headers:{...h,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(30000)});
+            const t=await r.text();
+            if(!r.ok)throw new Error('Netlify '+method+' '+path+' HTTP '+r.status+' '+t.slice(0,160));
+            return t?JSON.parse(t):{};
+          }
+          const site=await api('/sites/'+siteId);
+          assert.equal(site.published_deploy?.id,currentId,'Production inattendue, arrêt');
+          const current=await api('/deploys/'+currentId), working=await api('/deploys/'+workingId);
+          assert.equal(current.state,'ready');assert.equal(working.state,'ready');
+          assert.equal(working.site_id,siteId);
+          assert.equal(working.database_branch_id,'production');
+          assert.equal((working.available_functions||[]).length,5);
+          const expected=['cloud-trial','santa-call-background','santa-cleanup','santa-retention','___netlify-server-handler'];
+          assert.deepEqual(working.available_functions.map(f=>f.n).sort(),expected.sort());
+          let switched=false;
+          try{
+            await api('/sites/'+siteId+'/deploys/'+workingId+'/restore',{method:'POST'});switched=true;
+            assert.equal((await api('/sites/'+siteId)).published_deploy?.id,workingId,'Rollback non confirmé');
+            await new Promise(r=>setTimeout(r,1500));
+            const [pay,trial,home]=await Promise.all([
+              fetch('https://hohohosanta.app/api/cloud-trial/purchase/config',{headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)}),
+              fetch('https://hohohosanta.app/api/cloud-trial/config',{headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)}),
+              fetch('https://hohohosanta.app/essai',{headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)})
+            ]);
+            const pj=await pay.json().catch(()=>({})),tj=await trial.json().catch(()=>({}));
+            console.log('RESTORED_PAYMENT_CHECK',JSON.stringify({paymentStatus:pay.status,paidVideoAvailable:pj.paidVideoAvailable,priceCents:pj.priceCents,durationSeconds:pj.durationSeconds,trialStatus:trial.status,trialReady:tj.ready,pageStatus:home.status}));
+            if(!(pay.ok&&pj.paidVideoAvailable===true&&pj.priceCents===499&&pj.durationSeconds===300&&trial.ok&&tj.ready===true&&home.ok)){
+              throw new Error('La version restaurée ne réactive pas correctement le paiement');
+            }
+            console.log('WORKING_PAYMENT_DEPLOY_LEFT_LIVE',workingId);
+          }catch(e){
+            if(switched){
+              await api('/sites/'+siteId+'/deploys/'+currentId+'/restore',{method:'POST'});
+              assert.equal((await api('/sites/'+siteId)).published_deploy?.id,currentId,'Restauration du design actuel non confirmée');
+              console.log('CURRENT_DESIGN_RESTORED_AFTER_FAILED_PAYMENT_CHECK');
+            }
+            throw e;
+          }
+          NODE
