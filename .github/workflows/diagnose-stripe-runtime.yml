@@ -1,0 +1,127 @@
+name: Diagnostic Stripe runtime HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnose-stripe-runtime.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Diagnostiquer Stripe dans le contexte production sans paiement
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/hohoho-diag/functions /tmp/hohoho-diag/dist
+          cat > /tmp/hohoho-diag/functions/payment-diag.mjs <<'FUNC'
+          export default async () => {
+            const key = process.env.STRIPE_SECRET_KEY || '';
+            const enabled = process.env.CLOUD_PAYMENTS_ENABLED || '';
+            const keyMode = key.startsWith('sk_live_') ? 'live' : key.startsWith('sk_test_') ? 'test' : key ? 'other' : 'missing';
+            const out = { paymentsFlag: enabled, keyMode, configured: Boolean(key) };
+            if (!key) return new Response(JSON.stringify(out), {headers:{'content-type':'application/json'}});
+            try {
+              const r = await fetch('https://api.stripe.com/v1/account', {
+                headers: { Authorization: 'Bearer ' + key, 'Stripe-Version': '2025-09-30.clover' },
+                signal: AbortSignal.timeout(15000)
+              });
+              out.stripeHttp = r.status;
+              const data = await r.json().catch(() => ({}));
+              if (r.ok) {
+                out.account = {
+                  chargesEnabled: Boolean(data.charges_enabled),
+                  payoutsEnabled: Boolean(data.payouts_enabled),
+                  detailsSubmitted: Boolean(data.details_submitted),
+                  country: data.country || null,
+                  defaultCurrency: data.default_currency || null
+                };
+              } else {
+                out.stripeErrorType = data?.error?.type || null;
+                out.stripeErrorCode = data?.error?.code || null;
+              }
+            } catch (e) {
+              out.networkError = e?.name || 'Error';
+            }
+            return new Response(JSON.stringify(out), {headers:{'content-type':'application/json','cache-control':'no-store'}});
+          };
+          FUNC
+          npm init -y --prefix /tmp/hohoho-diag >/dev/null 2>&1
+          npm install --prefix /tmp/hohoho-diag --no-audit --no-fund @netlify/zip-it-and-ship-it@16.3.0 >/dev/null
+          node --input-type=module <<'NODE'
+          import {zipFunctions} from '/tmp/hohoho-diag/node_modules/@netlify/zip-it-and-ship-it/dist/main.js';
+          await zipFunctions('/tmp/hohoho-diag/functions','/tmp/hohoho-diag/dist',{archiveFormat:'zip'});
+          NODE
+          node --input-type=module <<'NODE'
+          import {readFile} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          if(!token) throw new Error('NETLIFY_AUTH_TOKEN absent');
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const base='https://api.netlify.com/api/v1';
+          const headers={Authorization:'Bearer '+token,Accept:'application/json'};
+          const call=async(path,opts={})=>{
+            const r=await fetch(base+path,{redirect:'error',signal:AbortSignal.timeout(30000),...opts,headers:{...headers,...(opts.headers||{})}});
+            const text=await r.text();
+            if(!r.ok) throw new Error(`Netlify ${opts.method||'GET'} ${path} HTTP ${r.status} ${text.slice(0,160)}`);
+            return text?JSON.parse(text):{};
+          };
+          const site=await call('/sites/'+siteId);
+          const sourceId=site.published_deploy?.id;
+          if(!sourceId) throw new Error('Aucun déploiement publié');
+          const source=await call('/deploys/'+sourceId);
+          if(source.state!=='ready'||source.context!=='production'||source.locked) throw new Error('Production non éligible au diagnostic');
+          const html=Buffer.from('<!doctype html><meta charset=utf-8><title>diagnostic</title>');
+          const zip=await readFile('/tmp/hohoho-diag/dist/payment-diag.zip');
+          const fileSha=createHash('sha1').update(html).digest('hex');
+          const fnSha=createHash('sha256').update(zip).digest('hex');
+          let candidateId=null, locked=false;
+          try {
+            await call('/deploys/'+sourceId+'/lock',{method:'POST'}); locked=true;
+            const check=await call('/sites/'+siteId);
+            if(check.published_deploy?.id!==sourceId) throw new Error('Production changée avant diagnostic');
+            const created=await call('/sites/'+siteId+'/deploys?title='+encodeURIComponent('Stripe runtime diagnostic - no publish'),{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({files:{'/index.html':fileSha},functions:{'payment-diag':fnSha},draft:false,async:true})
+            });
+            candidateId=created.id;
+            if(!/^[a-f0-9]{24}$/.test(candidateId||'')) throw new Error('Candidat invalide');
+            let ready=false,uploadedFile=false,uploadedFn=false;
+            for(let i=0;i<60;i++){
+              const current=await call('/sites/'+siteId);
+              if(current.published_deploy?.id!==sourceId) throw new Error('Production modifiée pendant diagnostic');
+              const d=await call('/deploys/'+candidateId);
+              if(['error','rejected'].includes(d.state)) throw new Error('Diagnostic deploy rejeté');
+              if((d.required||[]).includes(fileSha)&&!uploadedFile){
+                await fetch(base+'/deploys/'+candidateId+'/files/index.html',{method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/octet-stream'},body:html,signal:AbortSignal.timeout(30000)}).then(r=>{if(!r.ok)throw new Error('Upload fichier diagnostic '+r.status)});
+                uploadedFile=true;
+              }
+              if((d.required_functions||[]).includes(fnSha)&&!uploadedFn){
+                const u=await fetch(base+'/deploys/'+candidateId+'/functions/payment-diag?runtime=nodejs24.x&invocation_mode=stream',{
+                  method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/octet-stream'},body:zip,signal:AbortSignal.timeout(30000)
+                });
+                if(!u.ok) throw new Error('Upload fonction diagnostic '+u.status);
+                uploadedFn=true;
+              }
+              if(d.state==='ready'){ready=true;break;}
+              await new Promise(r=>setTimeout(r,1500));
+            }
+            if(!ready) throw new Error('Diagnostic deploy timeout');
+            const diag=await fetch(`https://${candidateId}--hohohosanta-live.netlify.app/.netlify/functions/payment-diag`,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+            const body=await diag.text();
+            if(!diag.ok) throw new Error('Diagnostic function HTTP '+diag.status);
+            console.log('STRIPE_RUNTIME_DIAG',body);
+          } finally {
+            if(candidateId) await fetch(base+'/deploys/'+candidateId,{method:'DELETE',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)}).catch(()=>{});
+            const current=await call('/sites/'+siteId).catch(()=>null);
+            if(locked&&current?.published_deploy?.id===sourceId) await fetch(base+'/deploys/'+sourceId+'/unlock',{method:'POST',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)}).catch(()=>{});
+            console.log('PRODUCTION_LEFT_UNCHANGED');
+          }
+          NODE
