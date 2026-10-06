@@ -27,11 +27,12 @@ jobs:
         working-directory: deployment
         run: |
           node --check production-staged.mjs
+          node --check finalize-ui.mjs
           node --test test-publish.mjs
-      - name: Revalider et publier le deploiement complet deja prepare
+      - name: Retirer uniquement la mention de previsualisation apres verification complete
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: node deployment/production-staged.mjs --publish 6ac4e7986db27e50c42c3ad2
+        run: node deployment/finalize-ui.mjs
       - name: Confirmer la publication controlee
         run: |
-          printf '## Publication verifiee\nAccueil, logo et favicon publies sur https://hohohosanta.app. Les cinq fonctions de production, deux taches et la branche de base de donnees ont ete conserves. Huit pages et seize scripts verifies par GET. Aucun paiement ni appel de test declenche.\n' >> "$GITHUB_STEP_SUMMARY"
+          printf '## Publication verifiee\nAccueil, logo et favicon publies sur https://hohohosanta.app, sans mention de previsualisation. Les cinq fonctions de production, deux taches et la base de donnees ont ete conserves. Aucun paiement ni appel de test declenche.\n' >> "$GITHUB_STEP_SUMMARY"
