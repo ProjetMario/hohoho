@@ -1,0 +1,46 @@
+name: Inspecter les archives Netlify
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/inspect-runtime-recovery.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Examiner les metadonnees du projet en lecture seule
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error, json, os
+          site='bd9b6590-f31a-42c7-b58d-12779e45cb0e'
+          base='https://api.netlify.com/api/v1'
+          secret=os.environ['NETLIFY_AUTH_TOKEN']
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          client=urllib.request.build_opener(NoRedirect)
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+secret,'Accept':'application/json'})
+              with client.open(req,timeout=30) as r: return json.load(r)
+          s=get('/sites/'+site)
+          assert s['id']==site and s['custom_domain']=='hohohosanta.app'
+          print('CURRENT',s.get('published_deploy',{}).get('id'))
+          bs=s.get('build_settings') or {}
+          print('BUILD',json.dumps({k:bs.get(k) for k in ['repo_url','repo_path','repo_branch','cmd','dir','functions_dir']}))
+          total=0
+          for p in range(1,4):
+              ds=get('/sites/'+site+'/deploys?per_page=100&page='+str(p))
+              for d in ds:
+                  total+=1
+                  print('DEPLOY',json.dumps({k:d.get(k) for k in ['id','state','created_at','context','title','build_id','has_source_zip','deploy_source']}))
+              if len(ds)<100: break
+          fs=get('/sites/'+site+'/files')
+          print('STATIC_PATHS',json.dumps([f['path'] for f in fs]))
+          print('COUNT',total)
+          print('READ_ONLY_COMPLETE')
+          PY
