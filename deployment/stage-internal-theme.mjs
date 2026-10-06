@@ -48,13 +48,16 @@ async function main(){
  }
  try{
   await api.lockDeploy({deployId:sourceId});ownedLock=true;await confirmLock();
-  const candidate=await api.createSiteDeploy({siteId,title,deploy:{files:expected,functions:plan.functions,functions_config:plan.configs,function_schedules:plan.schedules,edge_functions:edgeFunctions,framework:source.framework,draft:false,async:true}});
+  // The SDK uses `body` for the OpenAPI request body, as in Netlify CLI createSiteDeploy.
+  const candidate=await api.createSiteDeploy({siteId,title,body:{files:expected,functions:plan.functions,functions_config:plan.configs,function_schedules:plan.schedules,edge_functions:edgeFunctions,framework:source.framework,draft:false,async:true}});
   assert.equal(candidate.site_id,siteId);assert.match(candidate.id,/^[a-f0-9]{24}$/);candidateId=candidate.id;
+  assert.equal(candidate.context,'production');
   console.log('INTERNAL_THEME_STAGED',candidateId);
-  const uploaded=new Set(),uploadedEdges=new Set();let ready=false;
+  const uploaded=new Set(),uploadedEdges=new Set();let ready=false,lastState='';
   for(let attempt=0;attempt<120;attempt++){
    await confirmLock();
    const state=await api.getDeploy({deployId:candidateId});
+   if(state.state!==lastState){console.log('STAGING_STATE',state.state);lastState=state.state;}
    assert.ok(!['error','rejected'].includes(state.state),'Netlify rejected the staged build');
    assert.ok(!(state.required_functions?.length||state.required_server?.length),'Original functions could not be retained');
    for(const sha of state.required||[]){
@@ -85,7 +88,6 @@ async function main(){
   console.log('INTERNAL_THEME_READY_FOR_REVIEW',`https://${candidateId}--hohohosanta-live.netlify.app`);
   console.log('PRODUCTION_UNCHANGED_ALL_FIVE_FUNCTIONS_RETAINED');
  }catch(error){
-  // Undo only this run's unpublished candidate and temporary publication lock.
   const current=await api.getSite({siteId});
   if(ownedLock&&current.published_deploy?.id===sourceId){
    if(candidateId)await api.deleteDeploy({deployId:candidateId});
