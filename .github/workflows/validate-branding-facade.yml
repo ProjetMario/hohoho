@@ -1,0 +1,30 @@
+name: Valider accueil et application conservee
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/validate-branding-facade.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Tester la base de publication
+        working-directory: deployment
+        run: node --test test-publish.mjs
+      - name: Creer et verifier uniquement un brouillon
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node deployment/relay-prepare.mjs
