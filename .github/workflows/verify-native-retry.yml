@@ -1,0 +1,70 @@
+name: Verifier la relance native Netlify
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/verify-native-retry.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  retry:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verifier la relance native sans publication
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const sourceId='6ac4f14e6db27e83d72c3aa4';
+          const secret=process.env.NETLIFY_AUTH_TOKEN;
+          assert.ok(secret,'Deployment credential missing');
+          async function api(path,method='GET') {
+            const r=await fetch('https://api.netlify.com/api/v1'+path,{method,headers:{Authorization:'Bearer '+secret,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(25000)});
+            const data=await r.json().catch(()=>({}));
+            return {status:r.status,ok:r.ok,data};
+          }
+          async function site(){const r=await api('/sites/'+siteId);assert.ok(r.ok);assert.equal(r.data.custom_domain,'hohohosanta.app');return r.data;}
+          async function deploy(id){const r=await api('/deploys/'+id);assert.ok(r.ok);assert.equal(r.data.site_id,siteId);return r.data;}
+          assert.equal((await site()).published_deploy?.id,sourceId);
+          const source=await deploy(sourceId);assert.equal(source.state,'ready');assert.ok(!source.locked,'Existing publication lock');
+          const before=await api('/sites/'+siteId+'/deploys?per_page=100');assert.ok(before.ok);
+          const seen=new Set(before.data.map(x=>x.id));
+          let ownLock=false,candidateId=null,retryFinished=false;
+          try {
+            const lock=await api('/deploys/'+sourceId+'/lock','POST');assert.ok(lock.ok);ownLock=true;
+            assert.equal((await site()).published_deploy?.id,sourceId);assert.equal((await deploy(sourceId)).locked,true);
+            // Same retry endpoint used by Netlify's dashboard; no publication or source substitution.
+            const r=await api('/deploys/'+sourceId+'/retry','POST');retryFinished=true;
+            const message=String(r.data.message||r.data.error||'').replace(/(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g,'[REDACTED]').replace(/Bearer\s+\S+/gi,'[REDACTED]').slice(0,250);
+            console.log('NATIVE_RETRY_RESULT',JSON.stringify({status:r.status,message}));
+            if(r.ok){
+              candidateId=r.data.id||r.data.deploy_id||null;
+              assert.match(candidateId||'',/^[a-f0-9]{24}$/);assert.ok(!seen.has(candidateId),'Retry did not return a new candidate');
+              let d=await deploy(candidateId);
+              for(let i=0;i<20&&!['ready','error','rejected'].includes(d.state);i++){
+                await new Promise(r=>setTimeout(r,1500));d=await deploy(candidateId);
+                assert.equal((await site()).published_deploy?.id,sourceId);
+              }
+              console.log('NATIVE_RETRY_CANDIDATE',JSON.stringify({id:candidateId,state:d.state,functions:d.available_functions?.map(f=>f.n)||[]}));
+            }
+          } finally {
+            let safeToUnlock=retryFinished;
+            if(candidateId&&!seen.has(candidateId)){
+              let d=await deploy(candidateId);
+              if(!['ready','error','rejected'].includes(d.state)){
+                const cancel=await api('/deploys/'+candidateId+'/cancel','POST');
+                d=await deploy(candidateId);safeToUnlock=cancel.ok&&['error','rejected'].includes(d.state);
+              }
+            }
+            const current=await site();assert.equal(current.published_deploy?.id,sourceId,'Unexpected publication change');
+            if(ownLock&&safeToUnlock){const unlock=await api('/deploys/'+sourceId+'/unlock','POST');assert.ok(unlock.ok);}
+            console.log('PUBLICATION_VERIFIED',JSON.stringify({deploy:current.published_deploy.id,locked:(await deploy(sourceId)).locked===true,paymentAttempted:false}));
+          }
+          NODE
