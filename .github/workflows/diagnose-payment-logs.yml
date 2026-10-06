@@ -1,0 +1,41 @@
+name: Diagnostiquer les logs paiement HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnose-payment-logs.yml]
+permissions:
+  contents: read
+jobs:
+  logs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Appeler la configuration paiement puis lire les logs serveur filtrés
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          if(!token)throw new Error('token absent');
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const deployId='6ac4f14e6db27e83d72c3aa4';
+          const endpoint='https://hohohosanta.app/api/cloud-trial/purchase/config';
+          const before=Date.now()-120000;
+          const r=await fetch(endpoint,{headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(20000)});
+          console.log('CONFIG_RESPONSE',r.status,await r.text());
+          await new Promise(r=>setTimeout(r,2500));
+          const url=new URL('https://analytics.services.netlify.com/v2/sites/'+siteId+'/function_logs/___netlify-server-handler');
+          url.searchParams.set('from',String(before));
+          url.searchParams.set('to',String(Date.now()+1000));
+          url.searchParams.set('deploy_id',deployId);
+          const lr=await fetch(url,{headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},signal:AbortSignal.timeout(30000)});
+          if(!lr.ok)throw new Error('logs HTTP '+lr.status);
+          const body=await lr.json();
+          const sanitize=s=>String(s||'')
+            .replace(/(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+/g,'[STRIPE_KEY]')
+            .replace(/Bearer\s+[A-Za-z0-9._-]+/gi,'Bearer [REDACTED]')
+            .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[EMAIL]');
+          const logs=(body.logs||[]).filter(x=>String(x.request_path||'').includes('/api/cloud-trial/purchase/config')||/payment|stripe|checkout|purchase/i.test(String(x.message||''))).map(x=>({ts:x.ts,level:x.level,request_path:x.request_path||null,message:sanitize(x.message).slice(0,1000)}));
+          console.log('FILTERED_PAYMENT_LOGS',JSON.stringify(logs));
+          NODE
