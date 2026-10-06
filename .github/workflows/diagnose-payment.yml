@@ -34,4 +34,10 @@ jobs:
           console.log('SITE_ENV_KEYS', JSON.stringify(safe));
           const pay = safe.filter(v => /stripe|payment|price|checkout|billing|paid|purchase/i.test(v.key));
           console.log('PAYMENT_RELATED_KEYS', JSON.stringify(pay));
+          const allow = new Set(['CLOUD_PAYMENTS_ENABLED','CLOUD_TRIAL_MODE','NEXT_PUBLIC_APP_URL']);
+          const publicValues = vars.filter(v => allow.has(v.key) && !v.is_secret).map(v => ({
+            key: v.key,
+            values: (v.values || []).map(x => ({context:x.context || 'all', value:x.value}))
+          }));
+          console.log('NON_SECRET_PAYMENT_SETTINGS', JSON.stringify(publicValues));
           NODE
