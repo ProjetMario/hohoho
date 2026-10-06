@@ -26,7 +26,7 @@ jobs:
         run: |
           node --check production-staged.mjs
           node --test test-publish.mjs
-      - name: Verrouiller la version active et preparer la version complete sans la publier
+      - name: Preparer la production verrouillee avec verification SEO adaptee aux permaliens
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: node deployment/production-staged.mjs --prepare
