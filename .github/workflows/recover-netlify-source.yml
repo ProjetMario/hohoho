@@ -76,7 +76,7 @@ jobs:
                 const p=JSON.parse(txt);
                 console.log('PACKAGE_SUMMARY',JSON.stringify({name:p.name||null,scripts:p.scripts||{},dependencies:Object.keys(p.dependencies||{}).slice(0,80),devDependencies:Object.keys(p.devDependencies||{}).slice(0,80)}));
               } else {
-                const sanitized=txt.replace(/(?i)(token|secret|key|password)\s*=\s*["'][^"']*["']/g,'$1 = "[REDACTED]"');
+                const sanitized=txt.replace(/(token|secret|key|password)\s*=\s*["'][^"']*["']/gi,'$1 = "[REDACTED]"');
                 console.log('NETLIFY_TOML_PRESENT',JSON.stringify({bytes:Buffer.byteLength(txt),hasBuild:/\[build\]/.test(txt),hasFunctions:/\[functions\]/.test(txt)}));
               }
             }
