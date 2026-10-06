@@ -1,0 +1,44 @@
+name: Publier HoHoHo Santa
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [deployment/mobile-request.json]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Lire le projet
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Installer Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Installer les outils officiels
+        working-directory: deployment
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Tester la procedure
+        working-directory: deployment
+        run: node --test test-publish.mjs test-mobile.mjs
+      - name: Verifier les fichiers approuves
+        working-directory: deployment
+        run: node publish.mjs --assets-check
+      - name: Connexion et publication controlee
+        working-directory: deployment
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TELEMETRY_DISABLED: '1'
+        run: node mobile-publish.mjs
