@@ -1,0 +1,53 @@
+name: Retrouver la source serveur HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/inspect-server-source.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Identifier la source sans lire les secrets ni appeler les clients
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          assert.ok(token);
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const currentId='6ac4f14e6db27e83d72c3aa4';
+          const incompleteId='6ac50e900adc8a11ccaff589';
+          async function api(path,method='GET'){
+            const r=await fetch('https://api.netlify.com/api/v1'+path,{method,redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(30000)});
+            if(!r.ok)throw new Error('Netlify '+method+' '+path+' HTTP '+r.status);
+            const text=await r.text();return text?JSON.parse(text):{};
+          }
+          const site=await api('/sites/'+siteId);
+          assert.equal(site.custom_domain,'hohohosanta.app');
+          assert.equal(site.published_deploy?.id,currentId);
+          const build=site.build_settings||{};
+          console.log('BUILD_SOURCE',JSON.stringify({repository:build.repo_url||null,provider:build.provider||null,repoPath:build.repo_path||null,branch:build.repo_branch||null,buildCommand:build.cmd||null,base:build.base||null,publishDirectory:build.dir||null}));
+          const deployments=await api('/sites/'+siteId+'/deploys?per_page=100');
+          console.log('DEPLOY_SOURCE_REFERENCES',JSON.stringify(deployments.map(d=>({id:d.id,title:d.title,buildId:d.build_id||null,commit:d.commit_ref||null,commitUrl:d.commit_url||null,sourceZip:d.has_source_zip||false,source:d.deploy_source||null,state:d.state})).filter(d=>d.buildId||d.commit||d.sourceZip)));
+          const files=await api('/deploys/'+currentId+'/files?per_page=1000');
+          console.log('SERVER_ARCHIVE_FILE_CANDIDATES',JSON.stringify(files.filter(f=>/\.zip$|\.tar|\.m?js$|package\.json|netlify\.toml|function|server/i.test(f.path)&&!f.path.startsWith('/_next/')).map(f=>({path:f.path,size:f.size}))));
+          const failed=await api('/deploys/'+incompleteId);
+          assert.equal(failed.site_id,siteId);
+          assert.equal(failed.title,'HoHoHo Santa - refresh rotated production credentials');
+          assert.ok(!failed.published_at);
+          if(!['ready','error','rejected'].includes(failed.state)){
+            try{const canceled=await api('/deploys/'+incompleteId+'/cancel','POST');console.log('INCOMPLETE_REFRESH_CANCELED',canceled.state||'requested');}catch(error){console.log('INCOMPLETE_REFRESH_CANCEL_STATUS',error.message);}
+          }
+          const final=await api('/sites/'+siteId);
+          const live=await api('/deploys/'+currentId);
+          assert.equal(final.published_deploy?.id,currentId);assert.equal(live.state,'ready');assert.ok(!live.locked);
+          console.log('LIVE_SITE_UNCHANGED_AND_UNLOCKED');
+          NODE
