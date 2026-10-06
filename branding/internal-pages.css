@@ -1,0 +1,241 @@
+/* HoHoHo Santa — shared internal-page identity, 2026-10-06.
+   Presentation only: no form, permission, payment or call behavior is changed.
+   Loaded after the original application CSS by the HTML-only edge middleware. */
+html:root {
+  --hohoho-internal-version: "20261006-v1";
+  --paper: #fef8ee; --white: #fffefa; --ink: #382a27; --muted: #70605a;
+  --green: #850909; --red: #bd0c0f; --gold: #956323; --line: #e7d7bd;
+  --santa-red: #850909; --santa-bright: #bd0c0f; --santa-gold: #d79753;
+  --santa-night: #310909; --santa-cream: #fef8ee;
+}
+html body { background: radial-gradient(ellipse at 0 5%,#f5e4c966,transparent 42%), #fef8ee; color: #382a27; }
+html body h1, html body h2 { color: #850909; }
+html body h1 em, html body h2 em { color: #956323; }
+html body p { color: #70605a; }
+html body ::selection { background: #edc8a0; color: #570808; }
+html body :focus-visible { outline: 3px solid #a9712f; outline-offset: 4px; }
+html body .eyebrow { color: #966831; letter-spacing: .18em; }
+html body .site-header { max-width: 1320px; min-height: 112px; height: auto; border-bottom: 1px solid #e7d7bd; padding: 20px 44px; gap: 24px; }
+html body .brand { gap: 13px; color: #850909; }
+html body .brand-stamp { flex: 0 0 66px; display: block; width: 66px; height: 66px; font-size: 0; line-height: 0; letter-spacing: 0; border-radius: 50%; background: #850909 url('/branding-20261006/assets/logo-small.webp') center / cover no-repeat; box-shadow: 0 0 0 1px #c99b55,0 4px 14px #85090915; }
+html body .brand-stamp > span { display: none; }
+html body .brand-name { font-size: 34px; letter-spacing: -1px; text-transform: capitalize; }
+html body .brand-name::before { content: 'HoHoHo '; font-size: .72em; }
+html body .brand-name > span { text-transform: uppercase; font-size: 8px; color: #946329; letter-spacing: .15em; margin-top: 9px; }
+html body .header-note { color: #896a49; }
+html body .button { background: linear-gradient(135deg,#bd0c0f,#850909); border: 1px solid #850909; color: #fffefa; min-height: 48px; padding: 15px 23px; border-radius: 999px; font-weight: 600; box-shadow: 0 5px 15px #85090916; }
+html body .button:hover:not(:disabled) { background: #750909; box-shadow: 0 8px 22px #85090922; }
+html body .button-secondary, html body .button-white { color: #850909; background: #fffefa; border-color: #d9b786; box-shadow: none; }
+html body .button-secondary:hover:not(:disabled),html body .button-white:hover:not(:disabled) { color: #750909; background: #f9ecd8; }
+html body .button-small { min-height: 42px; padding: 10px 17px; }
+html body .text-link,html body .back-button,html body .demo-link,html body .edit-button { color: #850909; border-color: #c59b68; text-underline-offset: 4px; }
+html body .input,html body .account-form input { color: #382a27; background: #fffefa; border: 1px solid #d9bea0; border-radius: 12px; min-height: 50px; padding: 13px 15px; font-size: 16px; }
+html body .input:focus,html body .account-form input:focus { border-color: #a9712f; outline: 2px solid #d7975333; }
+html body .input::placeholder,html body .account-form input::placeholder { color: #8b776c; }
+html body .input[aria-invalid=true] { border-color: #bd0c0f; }
+html body input[type=checkbox],html body input[type=radio] { accent-color: #850909; }
+html body .form-label,html body .account-form label { color: #593129; }
+html body .field-hint,html body .field-hint small,html body .privacy-tip,html body .form-bottom>span,html body .flow-footer { color: #79664f; }
+html body .field-error { color: #a20d19; }
+html body .content-page { max-width: 900px; margin: 46px auto 84px; padding: 0 32px; }
+html body .content-page > h1 { font-size: clamp(37px,4.6vw,60px); letter-spacing: -.045em; margin: 20px 0 22px; max-width: 790px; }
+html body .content-page > p { font-size: 16px; line-height: 1.85; max-width: 730px; }
+html body .content-page > .eyebrow { display: inline-block; padding: 8px 13px; border: 1px solid #dfc39d; border-radius: 999px; background: #f8eddb; font-size: 10px; }
+html body .utility-card,html body .review-card,html body .metric { border: 1px solid #e3cba8; background: #fffefa; border-radius: 22px; padding: 28px 30px; box-shadow: 0 10px 30px #65321a07; }
+html body .utility-card { margin: 22px 0; border-top: 3px solid #d79753; }
+html body .utility-card h2 { font-size: 29px; line-height: 1.25; }
+html body .utility-card h2 svg { color: #a97534; display: inline; vertical-align: middle; margin-right: 6px; }
+html body .utility-card p { line-height: 1.8; }
+html body .legal-section { background: #fffefa; border: 1px solid #e7d7bd; border-left: 3px solid #d79753; border-radius: 18px; padding: 25px 28px; margin-top: 22px; }
+html body .legal-section h2 { font-size: 27px; }
+html body .legal-section p { color: #65564e; line-height: 1.9; overflow-wrap: anywhere; }
+html body .legal-section p:last-child { margin-bottom: 0; }
+html body .notice { color: #715237; background: #f8edda; border: 1px solid #e2c395; border-radius: 14px; padding: 17px 20px; }
+html body .notice strong { color: #713518; }
+html body .notice-warning { background: #fff2d8; color: #725217; border-color: #ddba71; }
+html body .notice-error { background: #fff0ee; color: #981121; border-color: #db9c96; }
+html body .account-form { padding-top: 10px; }
+html body .account-identity,html body .account-confirm { border-color: #dbc8aa; }
+html body .account-file-list { gap: 14px; }
+html body .account-file-list li { border: 1px solid #eadac0; border-radius: 12px; padding: 12px 15px; background: #fbf4e7; }
+html body .account-page .account-actions { gap: 12px; }
+html body .account-page .account-actions .button { font-size: 13px; }
+html body .account-preview { background: #260707f5; }
+html body .flow-page { padding-top: 32px; }
+html body .flow-progress { color: #9b876d; gap: 16px; }
+html body .flow-progress b { border-color: #d3b185; width: 29px; height: 29px; }
+html body .flow-progress .current { color: #850909; }
+html body .flow-progress .current b,html body .flow-progress .done b { background: #850909; border-color: #850909; color: #fffefa; }
+html body .flow-progress i { background: #dbc09a; }
+html body .flow-heading h1 { font-size: clamp(36px,4vw,50px); }
+html body .flow-layout { gap: 45px; }
+html body .flow-layout > section { border: 1px solid #e3cba8; border-radius: 24px; padding: 28px; background: #fffefa; }
+html body .review-top,html body .payment-summary,html body .aside-detail { border-color: #e7d7bd; }
+html body .review-item>span,html body .aside-detail { color: #94703d; }
+html body .gift-add,html body .gift-chip { color: #850909; background: #f7ead7; border-color: #dec49d; border-radius: 11px; }
+html body .gift-chip button { color: #850909; }
+html body .aside-photo { border-radius: 140px 140px 20px 20px; border: 1px solid #c39a62; }
+html body .aside-copy h3 { color: #850909; }
+/* Immersive screens retain their video, camera tile and original control positions. */
+html body .call-shell { background: radial-gradient(ellipse at 50% 25%,#7c171e 0%,#480b12 50%,#250709 100%); }
+html body .call-shell:before { background: radial-gradient(ellipse at 50% 35%,#d7975318,transparent 65%); }
+html body .brand-light { color: #fff7e8; }
+html body .brand-light .brand-name>span { color: #e2b977; }
+html body .call-top-note,html body .call-shell p { color: #e3cebd; }
+html body .call-shell h1 { color: #fff8eb; }
+html body .call-shell h1 em { color: #e2b977; }
+html body .call-shell .eyebrow,html body .call-status { color: #e7c995; }
+html body .call-bottom { color: #d9b58b; border-top: 1px solid #d7975326; }
+html body .call-shell .call-small-note { color: #d3b9a6!important; }
+html body .call-link { color: #e9c58f; }
+html body .call-portrait { border: 2px solid #ca995b; box-shadow: 0 0 0 10px #d7975309,0 16px 45px #1e040433; border-radius: 150px 150px 95px 95px; }
+html body .call-portrait.speaking { box-shadow: 0 0 0 16px #d797532b,0 0 0 32px #d7975310; }
+html body .call-button { background: linear-gradient(135deg,#f2d4a0,#d79753); color: #5c1012; border-color: #e5b677; box-shadow: 0 6px 24px #1a05051f; }
+html body .call-button:hover:not(:disabled) { background: #f0c790; color: #4e090b; }
+html body .demo-banner,html body .trial-live-banner { background: #f5dfb7; color: #651319; }
+html body .call-controls button { background: #791d2b; border-color: #d7975366; color: #fff4dc; }
+html body .call-controls button:hover:not(:disabled) { background: #963440; }
+html body .call-controls .end-call,html body .trial-video-controls button.end-call { background: #bd0c0f; border-color: #f2918a; color: white; }
+html body .call-controls .is-muted { background: #f6e2c2; color: #650b12; }
+html body .call-error { background: #51101bdd; border-color: #c79b6680; border-radius: 16px; }
+html body .call-end-icon { color: #eac389; border-color: #c79b66; }
+html body .fullscreen-button { background: #570d19cc; border-color: #dfb27670; color: #fff7e8; border-radius: 999px; }
+html body .fullscreen-error { background: #400d16; border-color: #c39a62; }
+html body .trial-setup { background: #390b13; }
+html body .trial-shade { background: linear-gradient(90deg,#340810f5 0%,#4c0d17de 38%,#430d1633 78%),linear-gradient(0deg,#28080dbb,transparent 60%); }
+html body .cloud-trial-card { background: #fff9eff5; border: 1px solid #d5ad78; border-top: 4px solid #d79753; border-radius: 28px; padding: clamp(26px,4vw,44px); box-shadow: 0 24px 70px #28050e3d; }
+html body .cloud-trial-card .brand { color: #850909; }
+html body .cloud-trial-card .brand-name>span { color: #946329; }
+html body .cloud-trial-card h1 { color: #850909; font-size: clamp(38px,4.5vw,56px); }
+html body .cloud-trial-card p { color: #6d584e; }
+html body .cloud-trial-card .trial-recording-notice { padding: 14px 16px; background: #f6ebd8; border-radius: 12px; color: #775839; font-size: 12px; }
+html body .cloud-trial-card .call-button { background: linear-gradient(135deg,#bd0c0f,#850909); color: #fffefa; border-color: #850909; }
+html body .cloud-trial-card .trial-secondary-button { color: #850909; background: transparent; border-color: #c6a171; border-radius: 999px; }
+html body .cloud-trial-card .error-text { color: #a31120; }
+html body .cloud-trial-card .trial-child-name { color: #773429; }
+html body .trial-intro { color: #e2cdbb; }
+html body .trial-connection-card,html body .trial-settings { background: #430b18ed; border-color: #d4a56866; border-radius: 20px; }
+html body .trial-setup-video .trial-shade { background: linear-gradient(90deg,#380a13f7,#430d18e6 55%,#340913ab); }
+html body .trial-setup h1,html body .trial-connection-card h2,html body .trial-settings h2 { color: #fff4df; }
+html body .trial-setup h1 em { color: #e2b977; }
+html body .trial-connection-card p,html body .trial-preview-note,html body .trial-agreement,html body .trial-settings label,html body .trial-provider-note,html body .trial-key-note,html body .trial-footnote { color: #e1caba; }
+html body .trial-setup .cloud-trial-card h1 { color: #850909; }
+html body .trial-settings summary,html body .trial-help-link,html body .trial-live-label { color: #ebc58d; }
+html body .trial-service-status span,html body .trial-provider-options button { background: #5f1923b3; border-color: #d2a66e66; color: #eadac5; }
+html body .trial-provider-options button[aria-pressed=true] { background: #d7975326; border-color: #e8c392; color: #fff5e1; }
+html body .trial-provider-options button small { color: #ddc2af; }
+html body .trial-video-call,html body .trial-avatar-stage { background: #25070d; }
+html body .trial-video-call .call-nav { background: linear-gradient(#320916b3,transparent); }
+html body .trial-avatar-stage:after { background: linear-gradient(#26061080,transparent 25% 70%,#280710ed); }
+html body .trial-video-call .trial-live-banner { background: #4e0c1bdd; color: #f7dfba; }
+html body .trial-video-status,html body .trial-countdown { background: #4c0c1be8; border-color: #d8ad7477; color: #fff2d6; }
+html body .trial-video-controls button { background: #691427eb; border-color: #d4a66e70; }
+html body .trial-video-controls button:hover { background: #883149; }
+html body .trial-video-controls button.is-muted,html body .trial-video-controls button[aria-pressed=true] { background: #f1dcc0; color: #641226; }
+html body .trial-video-controls .trial-enable-sound { background: #efc58b; color: #5b0e20; }
+html body .trial-call-actions,html body .trial-video-fallback { background: #3d0a19f2; border-color: #d5ac726e; border-radius: 20px; }
+html body .trial-call-actions h1,html body .trial-call-actions h2,html body .trial-video-fallback h2 { color: #fff2d9; }
+html body .trial-call-actions p,html body .trial-call-actions .trial-recording-notice,html body .trial-camera-note { color: #e0c9b9; }
+html body .trial-child-name { color: #f5d7a7; }
+html body .trial-child-name-input,html body .summary-editor textarea { background: #fff9ef; color: #452b28; border-color: #c8a06d; border-radius: 12px; }
+html body .trial-child-name-input::placeholder { color: #96786d; }
+html body .trial-language-select { color-scheme: light; }
+html body .trial-secondary-button { border-color: #d4ae765c; color: #f0ce9d; border-radius: 12px; }
+html body .trial-secondary-button:hover:not(:disabled) { background: #d7975320; }
+html body .trial-camera-tile { background: #501127e8; border-color: #d2aa78; }
+html body .trial-camera-label { background: #461021df; color: #fff4df; }
+html body .trial-live-captions { background: #370916ed; border-color: #d9b98566; }
+html body .trial-live-captions p { color: #fff8ed; }
+html body .trial-live-captions>span,html body .trial-recording-option { color: #f1d5ac; }
+html body .trial-replay-dialog { background: #390a18; color: #fff0d6; border-color: #d4a76c; border-radius: 22px; }
+html body .trial-replay-dialog h2,html body .trial-replay-dialog h3 { color: #f4d5a2; }
+html body .trial-replay-dialog p,html body .trial-replay-header p,html body .trial-share-privacy,html body .trial-share-hint { color: #e1c7b5; }
+html body .trial-replay-close,html body .trial-share-choice { background: #5b1328; color: #fff2dc; border-color: #ba8a6477; }
+html body .trial-share-choice:hover,html body .trial-share-choice[aria-pressed=true] { background: #7b233b; border-color: #e6bf85; }
+html body .trial-recording-pending { background: #4b0e1ee6; border-color: #d3a76b; }
+html body .summary-label,html body .summary-editor h3 { color: #f2d4a5; }
+html body .summary-photo img,html body .summary-photo-empty { background: #4b0e20; border-color: #d3a76b77; }
+html body .summary-remove,html body .summary-translation small { color: #ddc2ad; }
+/* Purchase and consent dialog: ivory panel, red actions, readable gold detail. */
+html body .trial-upgrade-dialog { background: #fff9ef; color: #4d2826; border: 1px solid #d5a86b; border-top: 5px solid #bd0c0f; border-radius: 26px; box-shadow: 0 25px 90px #26071166; }
+html body .trial-upgrade-dialog h2 { color: #850909; }
+html body .trial-upgrade-dialog h2 em { color: #956323; }
+html body .trial-upgrade-dialog p,html body .upgrade-consent { color: #6d554b; }
+html body .trial-upgrade-dialog .eyebrow { color: #946329; }
+html body .upgrade-close { background: #f3e4d1; color: #850909; width: 40px; height: 40px; }
+html body .upgrade-steps { color: #8c7566; }
+html body .upgrade-steps .complete { color: #886b36; }
+html body .upgrade-steps [aria-current=step] { color: #850909; font-weight: 700; }
+html body .upgrade-price { border-color: #dbc5a2; }
+html body .upgrade-price strong,html body .upgrade-total strong { color: #850909; }
+html body .upgrade-price span { color: #725c50; }
+html body .upgrade-benefits { color: #55372e; }
+html body .upgrade-benefits svg { color: #a17136; }
+html body .trial-upgrade-dialog .button { color: #fffefa; background: linear-gradient(135deg,#bd0c0f,#850909); border-color: #850909; }
+html body .trial-upgrade-dialog .button:hover:not(:disabled) { background: #750909; }
+html body .upgrade-fields input,html body .upgrade-fields select { border-color: #cba77c; border-radius: 12px; color: #432c26; background: #fffefa; font-size: 16px; }
+html body .upgrade-consent a,html body .upgrade-skip { color: #850909; border-color: #d4b082; }
+html body .upgrade-consent input { accent-color: #850909; }
+html body .upgrade-notice { background: #f9ecd7; border-color: #d7b789; }
+html body .upgrade-paid-check { background: #850909; color: #fff5df; }
+html body .seo-hero h1 { color: #850909; }
+html body .seo-image { background: #480e14; border: 1px solid #d3a76b; border-radius: 190px 190px 24px 24px; box-shadow: 0 18px 42px #6c1b131a; }
+html body .seo-link-card,html body .seo-facts { border-color: #e1caa6; border-radius: 18px; background: #fffefa; box-shadow: 0 6px 20px #5b211206; }
+html body .seo-link-card strong { color: #850909; }
+html body .seo-link-card:hover { border-color: #ad793b; background: #fcf2e2; }
+html body .seo-link-card svg,html body .seo-facts svg { color: #a97534; }
+html body .seo-band { background: #f4e7d1; border-block: 1px solid #e2c9a3; }
+html body .seo-related-links a { background: #fffefa; border-color: #d8b98e; color: #850909; border-radius: 999px; }
+html body .site-footer { max-width: 1320px; background: #f8edda; padding: 40px 44px 25px; border-color: #dbc39d; border-radius: 24px 24px 0 0; }
+html body .footer-links,html body .footer-sign { color: #805131; }
+html body .footer-bottom { color: #786148; border-color: #dbc39d; }
+html body .site-footer a:hover { color: #850909; }
+@media(max-width:800px) {
+ html body .site-header { min-height: 94px; padding: 16px 20px; gap: 15px; }
+ html body .brand { gap: 10px; }
+ html body .brand-stamp { flex-basis: 52px; width: 52px; height: 52px; }
+ html body .brand-name { font-size: 27px; letter-spacing: -.7px; }
+ html body .brand-name>span { font-size: 6.5px; letter-spacing: .10em; margin-top: 7px; }
+ html body .header-note { max-width: 120px; font-size: 12px; }
+ html body .content-page { margin: 28px auto 55px; padding: 0 22px; }
+ html body .content-page>h1 { font-size: clamp(36px,8.7vw,49px); }
+ html body .content-page>.eyebrow { font-size: 8px; max-width: 100%; }
+ html body .utility-card,html body .review-card { padding: 23px 21px; border-radius: 19px; }
+ html body .legal-section { padding: 22px 21px; }
+ html body .flow-layout>section { padding: 22px 18px; }
+ html body .flow-page { padding: 22px 18px 45px; }
+ html body .flow-progress { gap: 8px; }
+ html body .flow-progress b { width: 24px; height: 24px; }
+ html body .site-footer { padding: 30px 22px 22px; }
+ html body .site-footer .footer-links { flex-wrap: wrap; gap: 16px 22px; }
+ html body .call-nav { padding: 20px; gap: 12px; }
+ html body .call-nav .brand { transform: none; }
+ html body .call-nav .brand-name { font-size: 24px; }
+ html body .call-nav .brand-stamp { flex-basis: 46px; width: 46px; height: 46px; }
+ html body .call-portrait.small { width: 200px; height: 239px; }
+ html body .cloud-trial-entry { padding: 24px 20px; }
+ html body .cloud-trial-entry .trial-background { height: 100%!important; }
+ html body .cloud-trial-entry .trial-shade { background: linear-gradient(0deg,#330712f5,#4f0f1899 75%,#29080b55); }
+ html body .cloud-trial-card { padding: 28px 24px; border-radius: 24px; }
+ html body .cloud-trial-card .brand-stamp { flex-basis: 60px; width: 60px; height: 60px; }
+ html body .cloud-trial-card h1 { font-size: 42px; }
+ html body .trial-call-actions,html body .trial-video-fallback { border-radius: 17px; }
+ html body .seo-image { border-radius: 150px 150px 20px 20px; }
+}
+@media(max-width:430px) {
+ html body .site-header { padding-inline: 18px; gap: 10px; }
+ html body .site-header .header-note { font-size: 10px; max-width: 95px; }
+ html body .site-header .brand-name { font-size: 24px; }
+ html body .site-header .brand-stamp { flex-basis: 46px; width: 46px; height: 46px; }
+ html body .content-page { padding-inline: 18px; }
+ html body .content-page .utility-card h2 { font-size: 25px; }
+ html body .cloud-trial-card { padding: 25px 21px; }
+ html body .cloud-trial-card h1 { font-size: 38px; }
+ html body .cloud-trial-card .call-button { font-size: 13px; padding: 15px; }
+ html body .call-nav .brand-name { font-size: 22px; }
+ html body .fullscreen-button { padding: 9px; }
+ html body .fullscreen-button>span { font-size: 10px; }
+ html body .call-nav .call-top-note { display: none; }
+ html body .trial-upgrade-dialog { padding: 25px 20px; }
+}
+@media(prefers-reduced-motion:reduce) { html body .button { transition: none; } }
