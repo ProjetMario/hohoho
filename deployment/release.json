@@ -1,0 +1,21 @@
+{
+  "siteId": "bd9b6590-f31a-42c7-b58d-12779e45cb0e",
+  "hostname": "hohohosanta.app",
+  "expectedSourceDeploy": "6ac36ead5077d61df784c7cd",
+  "previewOrigin": "https://6ac3cfb4a873557f7f13d031--hohohosanta-live.netlify.app",
+  "prefix": "/branding-20261006",
+  "expectedFunctions": ["___netlify-server-handler", "cloud-trial", "santa-call-background", "santa-cleanup", "santa-retention"],
+  "pages": ["/essai", "/demo", "/parent", "/mes-souvenirs", "/support", "/legal", "/privacy", "/child-safety"],
+  "files": {
+    "/": "53b5af4941cb101f9b4fb73ed190d0af6488027941f907a054e43d799738279a",
+    "/styles.css": "42dab54380dc306e35962b1fa750e251a6ababd7504ad35a8f5508c3720015b3",
+    "/assets/logo-small.webp": "04e492bb903f27b17c54144880338c2e9dde2707adee6d2b26b2e32f299ba372",
+    "/assets/logo-hohoho-santa.webp": "47731a2057af7b048b7decd00ceb8411017ab33ea2976c1c5bd4d5a3463d032d",
+    "/assets/favicon.ico": "8620fc17186d5baef13982bfe5022bbde64fe23cb28fbd8124140326b479a4c5",
+    "/assets/favicon.png": "571bec317fcce8dea67aac0871734a7fff5d4237be2806c4fb1cf630c7913e85",
+    "/assets/icon-192.png": "ed1645882629b35bce473248427a8d9cdeff0039cf2ec0731629b340448263de",
+    "/assets/icon-512.png": "3e655486c009db691fd4d677395008c24787cd38e01734e75ef658fbb3048230",
+    "/assets/apple-touch-icon.png": "24c0bf0810aba6e644ca4a08fc7f7d1fa51b2144495820bdfe2e6820d8309ebc",
+    "/site.webmanifest": "bc0a751005f4aedaca40493f960b6ba0baebaa2fdf4ac5a77114884fcabd7eda"
+  }
+}

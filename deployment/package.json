@@ -1,0 +1,17 @@
+{
+  "name": "hohoho-safe-publication",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.13.0"},
+  "scripts": {
+    "login": "netlify login",
+    "test": "node --test test-publish.mjs",
+    "assets": "node publish.mjs --assets-check",
+    "plan": "node publish.mjs",
+    "prepare": "node publish.mjs --prepare",
+    "publish": "node publish.mjs --publish",
+    "rollback": "node publish.mjs --rollback"
+  },
+  "dependencies": {"@netlify/dev-utils": "6.0.3", "netlify-cli": "27.11.2"}
+}
