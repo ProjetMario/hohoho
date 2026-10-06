@@ -1,0 +1,51 @@
+name: Chercher l’archive cloud-trial Netlify
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/probe-function-download.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Tester uniquement les métadonnées des endpoints possibles
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          if(!token)throw new Error('token absent');
+          const site='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const deploy='6ac4f14e6db27e83d72c3aa4';
+          const name='cloud-trial';
+          const id='39c86549f3119da736120c29d7762822c9c3a424ac15c5ea7deb0a64a6947893';
+          const oid='d126b143fba04d5d314c1d8ff3bea5ee8f832c9302056b5f210323e401b0e508';
+          const digest='f41fd62149bc3d075509547b94280f920f57f1bc2580bfaf3f31511997810a4b';
+          const paths=[
+            '/sites/'+site+'/functions/'+name,
+            '/sites/'+site+'/functions/'+id,
+            '/sites/'+site+'/functions/'+oid,
+            '/sites/'+site+'/functions/'+name+'/download',
+            '/sites/'+site+'/functions/'+id+'/download',
+            '/functions/'+id,
+            '/functions/'+oid,
+            '/functions/'+id+'/download',
+            '/functions/'+oid+'/download',
+            '/deploys/'+deploy+'/functions/'+name,
+            '/deploys/'+deploy+'/functions/'+name+'/download',
+            '/deploys/'+deploy+'/functions/'+digest,
+            '/deploys/'+deploy+'/functions/'+digest+'/download'
+          ];
+          const out=[];
+          for(const p of paths){
+            try{
+              const r=await fetch('https://api.netlify.com/api/v1'+p,{method:'GET',headers:{Authorization:'Bearer '+token,Accept:'application/json',Range:'bytes=0-0'},redirect:'manual',signal:AbortSignal.timeout(10000)});
+              out.push({path:p,status:r.status,type:r.headers.get('content-type'),location:r.headers.has('location')?'present':null,length:r.headers.get('content-length')});
+              try{await r.body?.cancel();}catch{}
+            }catch(e){out.push({path:p,status:'network-error'});}
+          }
+          console.log('FUNCTION_ARCHIVE_PROBE',JSON.stringify(out));
+          NODE
