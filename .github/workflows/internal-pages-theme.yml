@@ -21,16 +21,24 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Installer les outils de verification
-        run: npm install --prefix deployment --no-save --ignore-scripts --no-audit --no-fund @netlify/edge-bundler@16.1.2 @netlify/edge-functions playwright@1.56.1
+      - name: Installer les outils officiels et le navigateur de test
+        run: npm install --prefix deployment --no-save --ignore-scripts --no-audit --no-fund @netlify/api@15.1.2 @netlify/edge-bundler@16.1.2 @netlify/edge-functions@4.0.0 playwright@1.56.1
       - name: Verifier la transformation HTML
         run: node --experimental-strip-types --test deployment/test-internal-theme.mjs
       - name: Construire le middleware de presentation
         run: node deployment/build-internal-theme.mjs
       - name: Installer Chromium
         run: deployment/node_modules/.bin/playwright install chromium
-      - name: Verifier le rendu sans publication
+      - name: Verifier le rendu avant toute modification Netlify
         run: node deployment/check-internal-browser.mjs https://hohohosanta.app --inject
+      - name: Preparer la version interne en conservant la production actuelle
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node deployment/stage-internal-theme.mjs
+      - name: Verifier les pages sur la version preparee
+        run: |
+          ORIGIN=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).origin')
+          node deployment/check-internal-browser.mjs "$ORIGIN"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
