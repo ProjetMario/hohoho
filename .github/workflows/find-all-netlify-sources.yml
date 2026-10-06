@@ -1,0 +1,42 @@
+name: Rechercher toutes les sources Netlify HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/find-all-netlify-sources.yml]
+permissions:
+  contents: read
+jobs:
+  find:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Tester la disponibilité des archives source sans les télécharger
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          if(!token)throw new Error('token absent');
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const base='https://api.netlify.com/api/v1';
+          const h={Authorization:'Bearer '+token,Accept:'application/json'};
+          const list=await fetch(base+'/sites/'+siteId+'/deploys?per_page=100',{headers:h,signal:AbortSignal.timeout(30000)});
+          if(!list.ok)throw new Error('list '+list.status);
+          const ds=await list.json();
+          const out=[];
+          for(const d of ds){
+            if(d.site_id!==siteId)continue;
+            let status=null,kind=null;
+            try{
+              const r=await fetch(base+'/deploys/'+d.id+'/download',{headers:h,redirect:'error',signal:AbortSignal.timeout(10000)});
+              status=r.status;
+              if(r.ok){
+                const j=await r.json().catch(()=>({}));
+                kind=typeof j.url==='string'&&j.url.startsWith('https://')?'downloadable':'unexpected';
+              }
+            }catch(e){status='network-error';}
+            out.push({id:d.id,title:d.title||null,state:d.state,created_at:d.created_at,build_id:d.build_id||null,has_source_zip:!!d.has_source_zip,deploy_source:d.deploy_source||null,download_status:status,downloadable:kind==='downloadable'});
+          }
+          console.log('SOURCE_DOWNLOAD_MATRIX',JSON.stringify(out));
+          NODE
