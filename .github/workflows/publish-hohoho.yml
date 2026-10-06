@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [deployment/mobile-request.json]
+    paths: [.github/workflows/publish-hohoho.yml]
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
   publish:
     if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - name: Lire le projet
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -27,18 +27,30 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Installer les outils officiels
+      - name: Tester la procedure sans connexion
         working-directory: deployment
-        run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Tester la procedure
-        working-directory: deployment
-        run: node --test test-publish.mjs test-mobile.mjs
+        run: node --test test-publish.mjs
       - name: Verifier les fichiers approuves
         working-directory: deployment
         run: node publish.mjs --assets-check
-      - name: Connexion et publication controlee
+      - name: Verifier la connexion de deploiement
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo '::error::NETLIFY_AUTH_TOKEN absent des secrets GitHub de ce depot. Aucun deploiement effectue.'
+            printf '## Connexion Netlify requise\nLe secret NETLIFY_AUTH_TOKEN doit etre configure dans ce depot. Aucun jeton ne doit etre envoye dans le chat ou ajoute au code.\n' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Creer et controler le brouillon sans changer la production
         working-directory: deployment
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_TELEMETRY_DISABLED: '1'
-        run: node mobile-publish.mjs
+        run: node publish.mjs --prepare
+      - name: Publier uniquement apres les controles
+        working-directory: deployment
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node publish.mjs --publish
+      - name: Confirmer la publication
+        run: printf '## Publication terminee\nLe script a confirme la nouvelle version sur https://hohohosanta.app. Aucun appel payant ou paiement de test declenche.\n' >> "$GITHUB_STEP_SUMMARY"
