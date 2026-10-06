@@ -37,11 +37,49 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
-          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
-            echo '::error::NETLIFY_AUTH_TOKEN absent des secrets GitHub de ce depot. Aucun deploiement effectue.'
-            printf '## Connexion Netlify requise\nLe secret NETLIFY_AUTH_TOKEN doit etre configure dans ce depot. Aucun jeton ne doit etre envoye dans le chat ou ajoute au code.\n' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const expectedUser = '68b002be08886a7275faee38';
+          const siteId = 'bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const secret = process.env.NETLIFY_AUTH_TOKEN;
+          function stop(code) {
+            console.error('::error::' + code + '. Aucun deploiement effectue.');
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Connexion Netlify\nResultat : ' + code + '. Aucun deploiement effectue.\n');
+            process.exit(1);
+          }
+          if (!secret) stop('NETLIFY_AUTH_TOKEN_MISSING');
+          // Read-only checks. Do not print credentials, profiles, or API bodies.
+          async function get(path) {
+            const response = await fetch('https://api.netlify.com/api/v1' + path, {
+              method: 'GET',
+              headers: { Authorization: 'Bearer ' + secret, Accept: 'application/json', 'User-Agent': 'HoHoHo-deployment-preflight' },
+              redirect: 'error', signal: AbortSignal.timeout(30000)
+            });
+            let data = null;
+            if (response.ok) data = await response.json();
+            else await response.body?.cancel();
+            return { status: response.status, data };
+          }
+          try {
+            const user = await get('/user');
+            const site = await get('/sites/' + siteId);
+            console.log(JSON.stringify({
+              user_http_status: user.status,
+              account_matches_connected_netlify: user.data?.id ? user.data.id === expectedUser : null,
+              project_http_status: site.status,
+              target_project_accessible: site.status === 200 && site.data?.id === siteId
+            }));
+            if (site.status !== 200) {
+              if (user.status === 200 && user.data?.id && user.data.id !== expectedUser) stop('NETLIFY_OTHER_ACCOUNT_WITHOUT_PROJECT_ACCESS');
+              if (user.status === 401 || site.status === 401) stop('NETLIFY_TOKEN_REJECTED');
+              stop('NETLIFY_PROJECT_ACCESS_NOT_GRANTED');
+            }
+            if (site.data?.id !== siteId || site.data?.custom_domain !== 'hohohosanta.app') stop('NETLIFY_TARGET_MISMATCH');
+            console.log('NETLIFY_TARGET_ACCESS_CONFIRMED');
+          } catch {
+            stop('NETLIFY_ACCESS_CHECK_REQUEST_FAILED');
+          }
+          NODE
       - name: Creer et controler le brouillon sans changer la production
         working-directory: deployment
         env:
