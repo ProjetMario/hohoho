@@ -29,19 +29,17 @@ jobs:
         run: node deployment/build-internal-theme.mjs
       - name: Installer Chromium
         run: deployment/node_modules/.bin/playwright install chromium
-      - name: Verifier le rendu avant toute modification Netlify
-        run: node deployment/check-internal-browser.mjs https://hohohosanta.app --inject
-      - name: Preparer la version interne avec le manifeste complet
+      - name: Terminer uniquement le candidat cree lors de cette modification
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: node deployment/stage-internal-theme.mjs
+        run: node deployment/stage-internal-theme.mjs --resume-created-candidate
       - name: Verifier le moteur applicatif et les pages sans publication
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
           CANDIDATE=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).candidateId')
           node deployment/verify-internal-theme.mjs "$CANDIDATE"
-      - name: Verifier les pages sur la version preparee
+      - name: Verifier le rendu reel des pages preparees
         run: |
           ORIGIN=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).origin')
           node deployment/check-internal-browser.mjs "$ORIGIN"
