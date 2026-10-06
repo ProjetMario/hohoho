@@ -1,0 +1,85 @@
+name: Récupérer la source HoHoHo depuis Netlify
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/recover-netlify-source.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Télécharger et inspecter le ZIP source sans afficher les secrets
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p recovered
+          node --input-type=module <<'NODE'
+          import {writeFile,mkdir,readdir,readFile,stat} from 'node:fs/promises';
+          import {createWriteStream} from 'node:fs';
+          import {pipeline} from 'node:stream/promises';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import {execFileSync} from 'node:child_process';
+
+          const token=process.env.NETLIFY_AUTH_TOKEN;
+          assert.ok(token,'NETLIFY_AUTH_TOKEN absent');
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const deployId='6ac3cfb4a873557f7f13d031';
+          const api='https://api.netlify.com/api/v1';
+          const get=async p=>{
+            const r=await fetch(api+p,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(30000)});
+            if(!r.ok)throw new Error('Netlify '+p+' HTTP '+r.status);
+            return r;
+          };
+          const site=await (await get('/sites/'+siteId)).json();
+          assert.equal(site.id,siteId);
+          assert.equal(site.custom_domain,'hohohosanta.app');
+          const dep=await (await get('/deploys/'+deployId)).json();
+          assert.equal(dep.site_id,siteId);
+          assert.equal(dep.has_source_zip,true,'Ce déploiement ne contient pas de ZIP source');
+
+          const dl=await (await get('/deploys/'+deployId+'/download')).json();
+          assert.match(dl.url||'',/^https:\/\//);
+          const zr=await fetch(dl.url,{redirect:'follow',signal:AbortSignal.timeout(60000)});
+          if(!zr.ok||!zr.body)throw new Error('Téléchargement ZIP HTTP '+zr.status);
+          await pipeline(zr.body,createWriteStream('recovered/source.zip'));
+          execFileSync('unzip',['-q','recovered/source.zip','-d','recovered/source']);
+
+          async function walk(dir,base=''){
+            const out=[];
+            for(const ent of await readdir(dir,{withFileTypes:true})){
+              const rel=path.join(base,ent.name);
+              if(ent.isDirectory())out.push(...await walk(path.join(dir,ent.name),rel));
+              else out.push(rel);
+            }
+            return out;
+          }
+          const files=await walk('recovered/source');
+          const sensitiveNames=files.filter(f=>/(^|\/)(\.env($|\.)|credentials|secrets?|.*\.pem$|.*\.key$|id_rsa|\.netrc|auth\.json$)/i.test(f));
+          const interesting=files.filter(f=>/(^|\/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|netlify\.toml|next\.config\.[cm]?js|src\/|app\/|pages\/|netlify\/functions\/|public\/)/.test(f));
+          console.log('SOURCE_ZIP_RECOVERED',JSON.stringify({deployId,fileCount:files.length,size:(await stat('recovered/source.zip')).size}));
+          console.log('SENSITIVE_FILENAMES_FOUND',JSON.stringify(sensitiveNames));
+          console.log('SOURCE_STRUCTURE_SAMPLE',JSON.stringify(interesting.slice(0,120)));
+
+          const roots=['package.json','netlify.toml'];
+          for(const f of roots){
+            if(files.includes(f)){
+              const txt=await readFile(path.join('recovered/source',f),'utf8');
+              if(f==='package.json'){
+                const p=JSON.parse(txt);
+                console.log('PACKAGE_SUMMARY',JSON.stringify({name:p.name||null,scripts:p.scripts||{},dependencies:Object.keys(p.dependencies||{}).slice(0,80),devDependencies:Object.keys(p.devDependencies||{}).slice(0,80)}));
+              } else {
+                const sanitized=txt.replace(/(?i)(token|secret|key|password)\s*=\s*["'][^"']*["']/g,'$1 = "[REDACTED]"');
+                console.log('NETLIFY_TOML_PRESENT',JSON.stringify({bytes:Buffer.byteLength(txt),hasBuild:/\[build\]/.test(txt),hasFunctions:/\[functions\]/.test(txt)}));
+              }
+            }
+          }
+          // Never upload or print the recovered source itself in this diagnostic.
+          NODE
