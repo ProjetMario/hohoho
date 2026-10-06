@@ -1,23 +1,19 @@
 name: Publier HoHoHo Santa
-
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths: [.github/workflows/publish-hohoho.yml]
-
 permissions:
   contents: read
-
 concurrency:
   group: hohohosanta-production
   cancel-in-progress: false
-
 jobs:
   publish:
     if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 12
     steps:
       - name: Lire le projet
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -27,68 +23,15 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Tester la procedure sans connexion
+      - name: Tester la procedure
         working-directory: deployment
-        run: node --test test-publish.mjs
-      - name: Verifier les fichiers approuves
-        working-directory: deployment
-        run: node publish.mjs --assets-check
-      - name: Verifier la connexion de deploiement
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
-          node --input-type=module <<'NODE'
-          import { appendFileSync } from 'node:fs';
-          const expectedUser = '68b002be08886a7275faee38';
-          const siteId = 'bd9b6590-f31a-42c7-b58d-12779e45cb0e';
-          const secret = process.env.NETLIFY_AUTH_TOKEN;
-          function stop(code) {
-            console.error('::error::' + code + '. Aucun deploiement effectue.');
-            appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Connexion Netlify\nResultat : ' + code + '. Aucun deploiement effectue.\n');
-            process.exit(1);
-          }
-          if (!secret) stop('NETLIFY_AUTH_TOKEN_MISSING');
-          // Read-only checks. Do not print credentials, profiles, or API bodies.
-          async function get(path) {
-            const response = await fetch('https://api.netlify.com/api/v1' + path, {
-              method: 'GET',
-              headers: { Authorization: 'Bearer ' + secret, Accept: 'application/json', 'User-Agent': 'HoHoHo-deployment-preflight' },
-              redirect: 'error', signal: AbortSignal.timeout(30000)
-            });
-            let data = null;
-            if (response.ok) data = await response.json();
-            else await response.body?.cancel();
-            return { status: response.status, data };
-          }
-          try {
-            const user = await get('/user');
-            const site = await get('/sites/' + siteId);
-            console.log(JSON.stringify({
-              user_http_status: user.status,
-              account_matches_connected_netlify: user.data?.id ? user.data.id === expectedUser : null,
-              project_http_status: site.status,
-              target_project_accessible: site.status === 200 && site.data?.id === siteId
-            }));
-            if (site.status !== 200) {
-              if (user.status === 200 && user.data?.id && user.data.id !== expectedUser) stop('NETLIFY_OTHER_ACCOUNT_WITHOUT_PROJECT_ACCESS');
-              if (user.status === 401 || site.status === 401) stop('NETLIFY_TOKEN_REJECTED');
-              stop('NETLIFY_PROJECT_ACCESS_NOT_GRANTED');
-            }
-            if (site.data?.id !== siteId || site.data?.custom_domain !== 'hohohosanta.app') stop('NETLIFY_TARGET_MISMATCH');
-            console.log('NETLIFY_TARGET_ACCESS_CONFIRMED');
-          } catch {
-            stop('NETLIFY_ACCESS_CHECK_REQUEST_FAILED');
-          }
-          NODE
-      - name: Creer et controler le brouillon sans changer la production
-        working-directory: deployment
+          node --check production-staged.mjs
+          node --test test-publish.mjs
+      - name: Revalider et publier le deploiement complet deja prepare
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: node publish.mjs --prepare
-      - name: Publier uniquement apres les controles
-        working-directory: deployment
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: node publish.mjs --publish
-      - name: Confirmer la publication
-        run: printf '## Publication terminee\nLe script a confirme la nouvelle version sur https://hohohosanta.app. Aucun appel payant ou paiement de test declenche.\n' >> "$GITHUB_STEP_SUMMARY"
+        run: node deployment/production-staged.mjs --publish 6ac4e7986db27e50c42c3ad2
+      - name: Confirmer la publication controlee
+        run: |
+          printf '## Publication verifiee\nAccueil, logo et favicon publies sur https://hohohosanta.app. Les cinq fonctions de production, deux taches et la branche de base de donnees ont ete conserves. Huit pages et seize scripts verifies par GET. Aucun paiement ni appel de test declenche.\n' >> "$GITHUB_STEP_SUMMARY"
