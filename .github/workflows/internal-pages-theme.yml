@@ -31,10 +31,16 @@ jobs:
         run: deployment/node_modules/.bin/playwright install chromium
       - name: Verifier le rendu avant toute modification Netlify
         run: node deployment/check-internal-browser.mjs https://hohohosanta.app --inject
-      - name: Preparer la version interne en conservant la production actuelle
+      - name: Preparer la version interne avec le manifeste complet
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: node deployment/stage-internal-theme.mjs
+      - name: Verifier le moteur applicatif et les pages sans publication
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          CANDIDATE=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).candidateId')
+          node deployment/verify-internal-theme.mjs "$CANDIDATE"
       - name: Verifier les pages sur la version preparee
         run: |
           ORIGIN=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).origin')
