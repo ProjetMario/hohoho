@@ -23,7 +23,8 @@ try {
    errors=[];
    const response=await page.goto(origin+path,{waitUntil:'networkidle',timeout:45000});
    assert.equal(response.status(),200,path);
-   const baseline=await page.locator('main').innerText();
+   // Compare DOM text, not CSS-rendered text: capitalization and decorative marks intentionally change.
+   const baseline=await page.locator('main').textContent();
    if(inject)await page.addStyleTag({content:css});
    await page.waitForTimeout(250);
    const metrics=await page.evaluate(()=>{
@@ -35,7 +36,7 @@ try {
    assert.ok(metrics.logo.includes('logo-small.webp'),'Logo not loaded '+path);
    assert.ok(metrics.documentWidth<=width+1,'Horizontal overflow '+width+' '+path+' '+JSON.stringify(metrics));
    assert.deepEqual(errors,[],'JavaScript error '+path);
-   if(inject)assert.equal(await page.locator('main').innerText(),baseline,'Theme modified content');
+   if(inject)assert.equal(await page.locator('main').textContent(),baseline,'Theme modified DOM content');
    const file=path.slice(1).replaceAll('/','-');
    if(['/essai','/demo','/parent','/mes-souvenirs','/support','/magie'].includes(path))await page.screenshot({path:`theme-screenshots/${width}-${file}.png`,fullPage:path==='/parent'||path==='/mes-souvenirs'});
    report.push({path,width,...metrics});
