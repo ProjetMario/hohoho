@@ -13,7 +13,7 @@ jobs:
   theme:
     if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -21,31 +21,43 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Installer les outils officiels et le navigateur de test
-        run: npm install --prefix deployment --no-save --ignore-scripts --no-audit --no-fund @netlify/api@15.1.2 @netlify/edge-bundler@16.1.2 @netlify/edge-functions@4.0.0 playwright@1.56.1
-      - name: Verifier la transformation HTML
+      - name: Installer les outils de verification
+        run: npm install --prefix deployment --no-save --ignore-scripts --no-audit --no-fund @netlify/api@15.1.2 playwright@1.56.1
+      - name: Tester le middleware de presentation
         run: node --experimental-strip-types --test deployment/test-internal-theme.mjs
-      - name: Construire le middleware de presentation
-        run: node deployment/build-internal-theme.mjs
       - name: Installer Chromium
         run: deployment/node_modules/.bin/playwright install chromium
-      - name: Terminer uniquement le candidat cree lors de cette modification
+      - name: Verifier le rendu et la navigation avant publication
+        run: node deployment/check-internal-browser.mjs https://6ac4f14e6db27e83d72c3aa4--hohohosanta-live.netlify.app
+      - name: Publier uniquement le candidat controle
+        id: publish
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: node deployment/stage-internal-theme.mjs --resume-created-candidate
-      - name: Verifier le moteur applicatif et les pages sans publication
+        run: node deployment/verify-internal-theme.mjs 6ac4f14e6db27e83d72c3aa4 --publish
+      - name: Verifier le rendu et la navigation sur le domaine principal
+        run: node deployment/check-internal-browser.mjs https://hohohosanta.app
+      - name: Restaurer la version precedente si le controle visuel final echoue
+        if: failure() && steps.publish.conclusion == 'success'
+        working-directory: deployment
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: |
-          CANDIDATE=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).candidateId')
-          node deployment/verify-internal-theme.mjs "$CANDIDATE"
-      - name: Verifier le rendu reel des pages preparees
-        run: |
-          ORIGIN=$(node -p 'JSON.parse(require("fs").readFileSync("theme-screenshots/release.json","utf8")).origin')
-          node deployment/check-internal-browser.mjs "$ORIGIN"
+          node --input-type=module <<'NODE'
+          import {NetlifyAPI} from '@netlify/api';
+          import assert from 'node:assert/strict';
+          const api=new NetlifyAPI(process.env.NETLIFY_AUTH_TOKEN);
+          const siteId='bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const site=await api.getSite({siteId});
+          assert.equal(site.custom_domain,'hohohosanta.app');
+          assert.equal(site.published_deploy.id,'6ac4f14e6db27e83d72c3aa4','A different release is now live');
+          await api.restoreSiteDeploy({siteId,deployId:'6ac4e90b56f9e65ce5189936'});
+          assert.equal((await api.getSite({siteId})).published_deploy.id,'6ac4e90b56f9e65ce5189936');
+          if((await api.getDeploy({deployId:'6ac4e90b56f9e65ce5189936'})).locked)await api.unlockDeploy({deployId:'6ac4e90b56f9e65ce5189936'});
+          console.log('ORIGINAL_RESTORED_AFTER_BROWSER_FAILURE');
+          NODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: apercus-pages-internes
+          name: pages-internes-verifiees
           path: theme-screenshots/
           retention-days: 3
