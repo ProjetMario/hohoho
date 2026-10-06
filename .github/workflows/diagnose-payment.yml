@@ -1,0 +1,37 @@
+name: Diagnostic paiement HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnose-payment.yml]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Inspecter la configuration paiement sans afficher les secrets
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.NETLIFY_AUTH_TOKEN;
+          const siteId = 'bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          if (!token) throw new Error('NETLIFY_AUTH_TOKEN absent');
+          const res = await fetch(`https://api.netlify.com/api/v1/sites/${siteId}/env`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+          });
+          if (!res.ok) throw new Error(`Netlify env HTTP ${res.status}`);
+          const vars = await res.json();
+          const safe = vars.map(v => ({
+            key: v.key,
+            scopes: v.scopes || [],
+            secret: !!v.is_secret,
+            contexts: (v.values || []).map(x => x.context || 'all'),
+            hasValue: (v.values || []).some(x => typeof x.value === 'string' && x.value.length > 0)
+          }));
+          console.log('SITE_ENV_KEYS', JSON.stringify(safe));
+          const pay = safe.filter(v => /stripe|payment|price|checkout|billing|paid|purchase/i.test(v.key));
+          console.log('PAYMENT_RELATED_KEYS', JSON.stringify(pay));
+          NODE
