@@ -1,0 +1,40 @@
+name: Actualiser la configuration serveur HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/refresh-runtime-env.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohohosanta-production
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Installer uniquement le compilateur de presentation
+        run: npm install --prefix deployment --no-save --ignore-scripts --no-audit --no-fund @netlify/edge-bundler@16.1.2 @netlify/edge-functions@4.0.0
+      - name: Verifier la syntaxe et le middleware existant
+        run: |
+          node --check deployment/refresh-runtime-env.mjs
+          node --experimental-strip-types --test deployment/test-internal-theme.mjs
+          node deployment/build-internal-theme.mjs
+      - name: Preparer un deploiement inchange avec la configuration actuelle
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node deployment/refresh-runtime-env.mjs --prepare
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: verification-configuration-serveur
+          path: runtime-refresh-report/
+          retention-days: 3
