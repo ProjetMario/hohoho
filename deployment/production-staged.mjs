@@ -74,7 +74,12 @@ async function validateFiles(id,expected) {
 async function validatePages(origin,sourceOrigin,patch) {
   const home=await publicRead(origin+'/');
   ensure(home.type.includes('text/html')&&home.bytes.includes(Buffer.from('data-hohoho-branding="2026-10-06"')),'Nouvel accueil non servi.');
-  ensure(!/noindex/i.test(home.robots),'Accueil non indexable.');
+  ensure(home.bytes.toString().includes('<meta name="robots" content="index,follow">'),'Directive HTML robots incorrecte.');
+  // Netlify adds X-Robots-Tag:noindex to unpublished production permalinks.
+  // It must disappear on the actual public hostname after manual publication.
+  // https://docs.netlify.com/deploy/deploy-overview/#search-engine-indexing
+  if(new URL(origin).hostname===cfg.hostname)ensure(!/noindex/i.test(home.robots),'Accueil publié non indexable.');
+  else ensure(/^[a-f0-9]{24}--hohohosanta-live\.netlify\.app$/.test(new URL(origin).hostname),'Origine de test inattendue.');
   for(const[p,b]of patch) {
     if(p==='/index.html')continue;
     const r=await publicRead(origin+p);ensure(hash(r.bytes)===hash(b),`Fichier de marque différent: ${p}`);
@@ -159,7 +164,7 @@ async function main() {
       if(id)await api(`/deploys/${id}`,{method:'DELETE'});
       if((await current()).published_deploy?.id===sourceId)await api(`/deploys/${sourceId}/unlock`,{method:'POST'});
       console.log('ORIGINAL_UNCHANGED_AND_UNLOCKED');
-    } else if(mode==='--publish'&&now.published_deploy?.id===id) {
+    } else if(id&&now.published_deploy?.id===id&&(mode==='--publish'||ownedLock)) {
       await api(`/sites/${cfg.siteId}/deploys/${sourceId}/restore`,{method:'POST'});
       ensure((await current()).published_deploy?.id===sourceId,'Retour à la source non confirmé.');
       console.log('ORIGINAL_RESTORED_AFTER_FAILED_POSTCHECK');
