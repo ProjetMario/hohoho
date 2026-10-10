@@ -1,0 +1,92 @@
+name: Diagnostic demarrage video HoHoHo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnose-video-start.yml]
+permissions:
+  contents: read
+concurrency:
+  group: hohoho-video-readonly-diagnostic
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - name: Diagnostic en lecture seule sans appel, paiement ou donnees personnelles
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const token = process.env.NETLIFY_AUTH_TOKEN;
+          assert.ok(token, 'Repository deployment credential missing');
+          const siteId = 'bd9b6590-f31a-42c7-b58d-12779e45cb0e';
+          const apiBase = 'https://api.netlify.com/api/v1';
+          async function getJson(url, authenticated = false) {
+            const parsed = new URL(url);
+            if (authenticated) assert.ok(['api.netlify.com', 'analytics.services.netlify.com'].includes(parsed.hostname));
+            const r = await fetch(url, {
+              method: 'GET', redirect: 'error',
+              headers: { Accept: 'application/json', ...(authenticated ? { Authorization: 'Bearer ' + token } : {}) },
+              signal: AbortSignal.timeout(20000)
+            });
+            if (!r.ok) throw new Error('GET ' + parsed.pathname + ' HTTP ' + r.status);
+            return r.json();
+          }
+          const site = await getJson(apiBase + '/sites/' + siteId, true);
+          assert.equal(site.custom_domain, 'hohohosanta.app');
+          const deployId = site.published_deploy?.id;
+          assert.match(deployId || '', /^[a-f0-9]{24}$/);
+          const deploy = await getJson(apiBase + '/deploys/' + deployId, true);
+          assert.equal(deploy.site_id, siteId);
+          console.log('DEPLOY', JSON.stringify({ id: deployId, state: deploy.state, publishedAt: deploy.published_at, source: deploy.deploy_source, sourceArchiveAvailable: !!deploy.has_source_zip, linkedRepository: !!site.build_settings?.repo_url }));
+          for (const path of ['/api/cloud-trial/config', '/api/cloud-trial/eligibility', '/api/cloud-trial/purchase/config']) {
+            try {
+              const data = await getJson('https://hohohosanta.app' + path);
+              const safe = {};
+              for (const k of ['ready', 'preview', 'freeAvailable', 'paidVideoAvailable', 'durationSeconds', 'priceCents']) if (typeof data[k] === 'boolean' || typeof data[k] === 'number') safe[k] = data[k];
+              for (const k of ['reason', 'unavailableReason', 'code']) if (typeof data[k] === 'string' && /^[a-z_]{1,64}$/.test(data[k])) safe[k] = data[k];
+              console.log('READINESS', path, JSON.stringify(safe));
+            } catch (e) { console.log('READINESS_ERROR', e.message); }
+          }
+          try {
+            const vars = await getJson(apiBase + '/sites/' + siteId + '/env', true);
+            assert.ok(Array.isArray(vars));
+            const relevant = vars.filter(v => /ANAM|TRIAL|OPENAI|BUDGET|CAPACITY|VIDEO|CREDIT|PAYMENTS/i.test(v.key));
+            console.log('CONFIGURATION_METADATA', JSON.stringify(relevant.map(v => ({
+              key: v.key, scopes: v.scopes || [], secret: !!v.is_secret,
+              contexts: (v.values || []).map(x => ({ context: x.context || 'all', valuePresent: typeof x.value === 'string' && x.value.length > 0 }))
+            }))));
+            console.log('NON_SECRET_LIMITS', JSON.stringify(relevant.filter(v => !v.is_secret && /BUDGET|CAPACITY|MINUTES|LIMIT|ENABLED|MODE|BALANCE/.test(v.key) && !/KEY|TOKEN|SECRET|PASSWORD/.test(v.key)).map(v => ({
+              key: v.key,
+              values: (v.values || []).map(x => ({ context: x.context || 'all', value: /^(?:\d+(?:\.\d+)?|true|false|production|public|preview|off|on)$/.test(x.value || '') ? x.value : '[omitted]' }))
+            }))));
+          } catch (e) { console.log('ENVIRONMENT_METADATA_ERROR', e.message); }
+          const errorLabels = ['capacity_exhausted', 'insufficient_quota', 'quota_exceeded', 'budget_exhausted', 'invalid_api_key', 'invalid_api_token', 'unauthorized', 'forbidden', 'rate_limit_exceeded', 'session_limit', 'concurrent_session', 'connection_failed', 'timeout', 'timed out', 'ECONNRESET', 'ENOTFOUND', 'payment_required', 'out of credits', 'insufficient credits', 'credit balance', 'not configured', 'missing', 'anam', 'openai', 'budget', 'quota', 'capacity', 'websocket', 'webrtc'];
+          const now = Date.now();
+          for (const name of ['cloud-trial', 'santa-service-health', 'santa-call-background']) {
+            try {
+              const url = new URL('https://analytics.services.netlify.com/v2/sites/' + siteId + '/function_logs/' + name);
+              url.searchParams.set('from', String(now - 24 * 3600 * 1000));
+              url.searchParams.set('to', String(now));
+              url.searchParams.set('deploy_id', deployId);
+              const body = await getJson(url.href, true);
+              const logs = Array.isArray(body.logs) ? body.logs : [];
+              const counts = {};
+              const statuses = {};
+              for (const entry of logs) {
+                const text = String(entry.message || '').toLowerCase();
+                for (const label of errorLabels) if (text.includes(label.toLowerCase())) counts[label] = (counts[label] || 0) + 1;
+                const status = Number(entry.status_code || entry.status);
+                if (Number.isInteger(status) && status >= 400 && status <= 599) statuses[status] = (statuses[status] || 0) + 1;
+              }
+              console.log('ERROR_COUNTS', JSON.stringify({ function: name, recordsInspected: logs.length, labels: counts, httpStatuses: statuses }));
+            } catch (e) { console.log('LOG_ACCESS_ERROR', name, e.message); }
+          }
+          const final = await getJson(apiBase + '/sites/' + siteId, true);
+          console.log('PRODUCTION_UNCHANGED', final.published_deploy?.id === deployId);
+          console.log('SAFETY', JSON.stringify({ readOnly: true, callsStarted: 0, paymentsCreated: 0, environmentWrites: 0, deploysCreated: 0, rawLogsPrinted: false, secretValuesPrinted: false }));
+          NODE
