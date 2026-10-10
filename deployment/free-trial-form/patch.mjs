@@ -50,10 +50,10 @@ export function patchClient(source) {
   let code = source;
   const replace = (before, after, label) => {
     assert.equal(code.split(before).length - 1, 1, 'Unexpected source: ' + label);
-    code = code.replace(before, after);
+    code = code.replace(before, () => after);
   };
   replace('function ei({cloud:j=', acquireMicrophone.toString() + '\nfunction ei({cloud:j=', 'microphone helper');
-  replace('y||"video"!==t||"on"===tL.status||tj();let s=!1;try{let a,o,l;', '/* Personal camera remains optional, using its own button. */let s=!1;let m=new AbortController;tU.current=m;try{let a,o,l;', 'request microphone separately');
+  replace(',y||"video"!==t||"on"===tL.status||tj();let s=!1;try{let a,o,l;', ';/* Personal camera remains optional, using its own button. */let s=!1;let m=new AbortController;tU.current=m;try{let a,o,l;', 'request microphone separately');
   replace('tP.current?.stream??await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:!0,noiseSuppression:!0,autoGainControl:!0},video:!1})', 'tP.current?.stream??await acquireMicrophone({audio:{echoCancellation:!0,noiseSuppression:!0,autoGainControl:!0},video:!1},m.signal)', 'bounded permission wait');
   replace('eu("video"===t?"Le Père Noël prépare sa caméra…":"Connexion à la voix du Père Noël…"),ep(!1)', 'eu("Autorisez le microphone dans votre navigateur pour démarrer l’appel."),ep(!1)', 'permission instruction');
   replace('tM.current=c,c.getAudioTracks()', 'eu("video"===t?"Le Père Noël prépare sa caméra…":"Connexion à la voix du Père Noël…"),tM.current=c,c.getAudioTracks()', 'connection status after permission');
@@ -65,13 +65,12 @@ export function patchClient(source) {
   replace('className:"trial-secondary-button",onClick:re,children:', 'className:"trial-secondary-button",type:"button",onClick:re,children:', 'camera button');
   replace('className:"trial-secondary-button",onClick:z,children:"Configurer la connexion"', 'className:"trial-secondary-button",type:"button",onClick:z,children:"Configurer la connexion"', 'configuration button');
   replace('className:"end-call",onClick:tK,"aria-label":"Terminer l’appel",children:(0,t.jsx)(l.PhoneOff,{size:23})', 'className:"end-call",type:"button",onClick:()=>{if("connecting"===tT.current){tJ();void tG();tX("welcome")}else tK()},"aria-label":"connecting"===K?"Annuler la connexion":"Terminer l’appel",children:"connecting"===K?"Annuler":(0,t.jsx)(l.PhoneOff,{size:23})', 'cancel before connection');
-  // These safeguards must stay byte-for-byte unchanged.
   for (const guard of [
     'if(t$.current||!I||"video"===t&&!T||!eb&&!eN?.freeAvailable||eb&&"video"!==t)return;',
     't9=!eb&&!y&&(b||ek||eN?.freeAvailable===!1||eK<=0)',
     'disabled:!T||!I||!eD||!eb&&!eN?.freeAvailable'
   ]) assert.ok(code.includes(guard), 'Original eligibility condition changed');
   code = '/* ' + VERSION + ' */\n' + code;
-  new Script(code);
+  try { new Script(code); } catch (error) { throw new Error('Patched script syntax: '+error.message); }
   return code;
 }
