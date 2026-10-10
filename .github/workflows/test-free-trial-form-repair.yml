@@ -1,0 +1,33 @@
+name: Tester la reparation du formulaire gratuit
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/free-trial-form-permissions]
+    paths:
+      - deployment/free-trial-form/**
+      - .github/workflows/test-free-trial-form-repair.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    if: github.repository == 'ProjetMario/hohoho'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Installer le navigateur de test
+        working-directory: deployment/free-trial-form
+        run: |
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verifier le correctif sans appel reel ni secret
+        run: |
+          node --check deployment/free-trial-form/patch.mjs
+          node --check deployment/free-trial-form/test-browser.mjs
+          node deployment/free-trial-form/test-browser.mjs https://hohohosanta.app --inject
