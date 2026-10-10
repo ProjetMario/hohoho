@@ -1,0 +1,36 @@
+name: Verifier le formulaire essai gratuit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/audit-free-trial-form.yml
+      - deployment/audit-free-trial-form.mjs
+permissions:
+  contents: read
+concurrency:
+  group: hohoho-form-browser-audit
+  cancel-in-progress: false
+jobs:
+  form:
+    if: github.repository == 'ProjetMario/hohoho' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Installer le navigateur de test isole
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hohoho-form"
+          cp deployment/audit-free-trial-form.mjs "$RUNNER_TEMP/hohoho-form/audit.mjs"
+          cd "$RUNNER_TEMP/hohoho-form"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Tester uniquement les interactions du formulaire sans appel reel
+        run: node "$RUNNER_TEMP/hohoho-form/audit.mjs"
