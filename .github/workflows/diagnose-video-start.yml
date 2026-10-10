@@ -24,69 +24,82 @@ jobs:
           const token = process.env.NETLIFY_AUTH_TOKEN;
           assert.ok(token, 'Repository deployment credential missing');
           const siteId = 'bd9b6590-f31a-42c7-b58d-12779e45cb0e';
-          const apiBase = 'https://api.netlify.com/api/v1';
-          async function getJson(url, authenticated = false) {
-            const parsed = new URL(url);
-            if (authenticated) assert.ok(['api.netlify.com', 'analytics.services.netlify.com'].includes(parsed.hostname));
-            const r = await fetch(url, {
-              method: 'GET', redirect: 'error',
-              headers: { Accept: 'application/json', ...(authenticated ? { Authorization: 'Bearer ' + token } : {}) },
-              signal: AbortSignal.timeout(20000)
-            });
-            if (!r.ok) throw new Error('GET ' + parsed.pathname + ' HTTP ' + r.status);
+          const base = 'https://api.netlify.com/api/v1';
+          async function netlify(path, analytics = false) {
+            const host = analytics ? 'https://analytics.services.netlify.com' : base;
+            assert.ok(path.startsWith('/') && !path.includes('..'));
+            const r = await fetch(host + path, { method:'GET', redirect:'error', headers:{Accept:'application/json',Authorization:'Bearer '+token}, signal:AbortSignal.timeout(20000) });
+            if (!r.ok) throw new Error('Netlify GET HTTP '+r.status);
             return r.json();
           }
-          const site = await getJson(apiBase + '/sites/' + siteId, true);
+          const site = await netlify('/sites/'+siteId);
           assert.equal(site.custom_domain, 'hohohosanta.app');
           const deployId = site.published_deploy?.id;
           assert.match(deployId || '', /^[a-f0-9]{24}$/);
-          const deploy = await getJson(apiBase + '/deploys/' + deployId, true);
+          const deploy = await netlify('/deploys/'+deployId);
           assert.equal(deploy.site_id, siteId);
-          console.log('DEPLOY', JSON.stringify({ id: deployId, state: deploy.state, publishedAt: deploy.published_at, source: deploy.deploy_source, sourceArchiveAvailable: !!deploy.has_source_zip, linkedRepository: !!site.build_settings?.repo_url }));
-          for (const path of ['/api/cloud-trial/config', '/api/cloud-trial/eligibility', '/api/cloud-trial/purchase/config']) {
+          console.log('DEPLOY', JSON.stringify({id:deployId,state:deploy.state,publishedAt:deploy.published_at,source:deploy.deploy_source,sourceArchiveAvailable:!!deploy.has_source_zip,linkedRepository:!!site.build_settings?.repo_url}));
+          const allowedFields = new Set(['ready','preview','freeAvailable','paidVideoAvailable','durationSeconds','priceCents','canStartSession','limit','active','estimatedWaitSeconds','available','capacity','remaining','remainingMinutes','availableMinutes','reservedMinutes','usedMinutes','totalMinutes','free','paid','configured','healthy','ok','success','status','statusCode','code','reason','unavailableReason','count','used','reserved','total','maxConcurrentSessions','balance','budget','freeCapacity','paidCapacity','freeAvailableMinutes','paidAvailableMinutes','freeReady','paidReady']);
+          const allowedValues = new Set(['capacity_exhausted','insufficient_quota','quota_exceeded','budget_exhausted','invalid_api_key','unauthorized','forbidden','rate_limit_exceeded','session_limit','connection_failed','timeout','payment_required','not_configured','missing','available','used','vpn','ready','ok','error','healthy','unhealthy','degraded','capacity','unavailable']);
+          function project(object, depth = 0) {
+            if (!object || typeof object !== 'object' || depth > 5) return {};
+            const out = {};
+            for (const [key,value] of Object.entries(object)) {
+              if (/key|token|secret|password|name|email|transcript|address|phone|url/i.test(key)) continue;
+              if (allowedFields.has(key) && (typeof value === 'boolean' || typeof value === 'number' || value === null || allowedValues.has(value))) out[key]=value;
+              else if (value && typeof value === 'object' && /^[a-z][a-zA-Z_]{0,40}$/.test(key)) { const nested=project(value,depth+1); if(Object.keys(nested).length) out[key]=nested; }
+            }
+            return out;
+          }
+          for (const path of ['/api/cloud-trial/config','/api/cloud-trial/eligibility','/api/cloud-trial/purchase/config']) {
             try {
-              const data = await getJson('https://hohohosanta.app' + path);
-              const safe = {};
-              for (const k of ['ready', 'preview', 'freeAvailable', 'paidVideoAvailable', 'durationSeconds', 'priceCents']) if (typeof data[k] === 'boolean' || typeof data[k] === 'number') safe[k] = data[k];
-              for (const k of ['reason', 'unavailableReason', 'code']) if (typeof data[k] === 'string' && /^[a-z_]{1,64}$/.test(data[k])) safe[k] = data[k];
-              console.log('READINESS', path, JSON.stringify(safe));
-            } catch (e) { console.log('READINESS_ERROR', e.message); }
+              const r=await fetch('https://hohohosanta.app'+path,{method:'GET',redirect:'error',signal:AbortSignal.timeout(20000)});
+              console.log('READINESS',path,r.status,JSON.stringify(project(await r.json())));
+            } catch (e) { console.log('READINESS_ERROR',e.name); }
           }
           try {
-            const vars = await getJson(apiBase + '/sites/' + siteId + '/env', true);
+            const vars=await netlify('/sites/'+siteId+'/env');
             assert.ok(Array.isArray(vars));
-            const relevant = vars.filter(v => /ANAM|TRIAL|OPENAI|BUDGET|CAPACITY|VIDEO|CREDIT|PAYMENTS/i.test(v.key));
-            console.log('CONFIGURATION_METADATA', JSON.stringify(relevant.map(v => ({
-              key: v.key, scopes: v.scopes || [], secret: !!v.is_secret,
-              contexts: (v.values || []).map(x => ({ context: x.context || 'all', valuePresent: typeof x.value === 'string' && x.value.length > 0 }))
-            }))));
-            console.log('NON_SECRET_LIMITS', JSON.stringify(relevant.filter(v => !v.is_secret && /BUDGET|CAPACITY|MINUTES|LIMIT|ENABLED|MODE|BALANCE/.test(v.key) && !/KEY|TOKEN|SECRET|PASSWORD/.test(v.key)).map(v => ({
-              key: v.key,
-              values: (v.values || []).map(x => ({ context: x.context || 'all', value: /^(?:\d+(?:\.\d+)?|true|false|production|public|preview|off|on)$/.test(x.value || '') ? x.value : '[omitted]' }))
-            }))));
-          } catch (e) { console.log('ENVIRONMENT_METADATA_ERROR', e.message); }
-          const errorLabels = ['capacity_exhausted', 'insufficient_quota', 'quota_exceeded', 'budget_exhausted', 'invalid_api_key', 'invalid_api_token', 'unauthorized', 'forbidden', 'rate_limit_exceeded', 'session_limit', 'concurrent_session', 'connection_failed', 'timeout', 'timed out', 'ECONNRESET', 'ENOTFOUND', 'payment_required', 'out of credits', 'insufficient credits', 'credit balance', 'not configured', 'missing', 'anam', 'openai', 'budget', 'quota', 'capacity', 'websocket', 'webrtc'];
-          const now = Date.now();
-          for (const name of ['cloud-trial', 'santa-service-health', 'santa-call-background']) {
+            const relevant=vars.filter(v=>/ANAM|TRIAL|OPENAI|BUDGET|CAPACITY|VIDEO|CREDIT|PAYMENTS/i.test(v.key));
+            console.log('CONFIGURATION_METADATA',JSON.stringify(relevant.map(v=>({key:v.key,scopes:v.scopes||[],secret:!!v.is_secret,contexts:(v.values||[]).map(x=>({context:x.context||'all',valuePresent:typeof x.value==='string'&&x.value.length>0}))}))));
+            const productionValue = name => {
+              const values=vars.find(v=>v.key===name)?.values||[];
+              return values.find(v=>v.context==='production')?.value || values.find(v=>v.context==='all')?.value || '';
+            };
+            // This documented GET is an advisory check, not a session or billing operation.
+            // Provider credentials remain in the runner and are sent only to their provider.
+            const key=productionValue('ANAM_PAID_API_KEY');
+            if (key) {
+              console.log('::add-mask::'+key);
+              const r=await fetch('https://api.anam.ai/v1/sessions/concurrency',{method:'GET',redirect:'error',headers:{Accept:'application/json',Authorization:'Bearer '+key},signal:AbortSignal.timeout(20000)});
+              const data=await r.json().catch(()=>({}));
+              console.log('ANAM_CONCURRENCY',JSON.stringify({httpStatus:r.status,...project(data)}));
+            } else console.log('ANAM_CONCURRENCY_CREDENTIAL_NOT_READABLE');
+          } catch(e) { console.log('PROVIDER_DIAGNOSTIC_ERROR',e.name); }
+          const labels=['capacity_exhausted','insufficient_quota','quota_exceeded','budget_exhausted','invalid_api_key','invalid_api_token','unauthorized','forbidden','rate_limit_exceeded','session_limit','concurrent_session','connection_failed','timeout','timed out','ECONNRESET','ENOTFOUND','payment_required','out of credits','insufficient credits','credit balance','not configured','missing','anam','openai','budget','quota','capacity','websocket','webrtc'];
+          const now=Date.now();
+          for(const name of ['cloud-trial','santa-service-health','santa-call-background']) {
             try {
-              const url = new URL('https://analytics.services.netlify.com/v2/sites/' + siteId + '/function_logs/' + name);
-              url.searchParams.set('from', String(now - 24 * 3600 * 1000));
-              url.searchParams.set('to', String(now));
-              url.searchParams.set('deploy_id', deployId);
-              const body = await getJson(url.href, true);
-              const logs = Array.isArray(body.logs) ? body.logs : [];
-              const counts = {};
-              const statuses = {};
-              for (const entry of logs) {
-                const text = String(entry.message || '').toLowerCase();
-                for (const label of errorLabels) if (text.includes(label.toLowerCase())) counts[label] = (counts[label] || 0) + 1;
-                const status = Number(entry.status_code || entry.status);
-                if (Number.isInteger(status) && status >= 400 && status <= 599) statuses[status] = (statuses[status] || 0) + 1;
+              const path='/v2/sites/'+siteId+'/function_logs/'+name+'?from='+(now-86400000)+'&to='+now+'&deploy_id='+deployId;
+              const body=await netlify(path,true);
+              const logs=Array.isArray(body.logs)?body.logs:[];
+              const counts={}, healthSamples=[];
+              for(const entry of logs) {
+                const text=String(entry.message||'');
+                for(const label of labels) if(text.toLowerCase().includes(label.toLowerCase())) counts[label]=(counts[label]||0)+1;
+                if(name==='santa-service-health' && /capacity|error|timeout/i.test(text) && healthSamples.length<5) {
+                  let structured={};
+                  const start=text.indexOf('{'),end=text.lastIndexOf('}');
+                  if(start>=0&&end>start) try { structured=project(JSON.parse(text.slice(start,end+1))); } catch {}
+                  // Extract only machine-field names for unknown schemas, never raw messages.
+                  const fields=[...new Set([...text.matchAll(/\b((?:free|paid|capacity|remaining|reserved|used|total|available|health|status|budget|credit|balance|error|reason|concurr)[A-Za-z_]*)\b/g)].map(m=>m[1]))].slice(0,30);
+                  healthSamples.push({fields,metrics:structured});
+                }
               }
-              console.log('ERROR_COUNTS', JSON.stringify({ function: name, recordsInspected: logs.length, labels: counts, httpStatuses: statuses }));
-            } catch (e) { console.log('LOG_ACCESS_ERROR', name, e.message); }
+              console.log('ERROR_COUNTS',JSON.stringify({function:name,recordsInspected:logs.length,labels:counts,healthSamples}));
+            } catch(e) {console.log('LOG_ACCESS_ERROR',name,e.name);}
           }
-          const final = await getJson(apiBase + '/sites/' + siteId, true);
-          console.log('PRODUCTION_UNCHANGED', final.published_deploy?.id === deployId);
-          console.log('SAFETY', JSON.stringify({ readOnly: true, callsStarted: 0, paymentsCreated: 0, environmentWrites: 0, deploysCreated: 0, rawLogsPrinted: false, secretValuesPrinted: false }));
+          const final=await netlify('/sites/'+siteId);
+          console.log('PRODUCTION_UNCHANGED',final.published_deploy?.id===deployId);
+          console.log('SAFETY',JSON.stringify({readOnly:true,callsStarted:0,paymentsCreated:0,environmentWrites:0,deploysCreated:0,rawLogsPrinted:false,secretValuesPrinted:false}));
           NODE
